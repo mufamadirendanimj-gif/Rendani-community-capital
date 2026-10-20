@@ -3,13 +3,13 @@ import sqlite3
 import streamlit as st
 
 # ==========================================
-# 1. PAGE CONFIGURATION & HIDE BADGES/HEADERS
+# 1. PAGE CONFIGURATION & STYLING
 # ==========================================
 st.set_page_config(
     page_title="Rendani Community Capital", page_icon="🏛️", layout="centered"
 )
 
-# Hide Streamlit UI elements, headers, footers & WebIntoApp badges
+# Hide Streamlit UI elements, headers, footers & badges
 st.markdown(
     """
     <style>
@@ -17,7 +17,7 @@ st.markdown(
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Target WebIntoApp and Streamlit Cloud floating badges */
+    /* Hide floating badges */
     .viewerBadge_container__1QSob, .styles_viewerBadge__1yB5_, 
     [data-testid="stDecoration"], [data-testid="stStatusWidget"],
     .floating-badge, #webintoapp-badge, iframe[src*="webintoapp"] {
@@ -29,7 +29,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Display Custom R.C.C. Logo if present in the folder
+# Display Custom R.C.C. Logo if present
 if os.path.exists("logo.png"):
     st.image("logo.png", use_container_width=True)
 elif os.path.exists("logo.jpg"):
@@ -47,24 +47,35 @@ st.divider()
 def init_db():
     conn = sqlite3.connect("rendani.db")
     cursor = conn.cursor()
+
+    # Create table if it doesn't exist
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS members (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
+            name TEXT UNIQUE,
+            pin TEXT DEFAULT '1234',
+            gender TEXT DEFAULT 'Male',
             stokvel_balance REAL,
             loan_status TEXT,
             savings_goal REAL DEFAULT 10000.0
         )
     """)
+
+    # Check if gender column exists for existing databases
+    cursor.execute("PRAGMA table_info(members)")
+    columns = [column[1] for column in cursor.fetchall()]
+    if "gender" not in columns:
+        cursor.execute("ALTER TABLE members ADD COLUMN gender TEXT DEFAULT 'Male'")
+
     cursor.execute("SELECT COUNT(*) FROM members")
     if cursor.fetchone()[0] == 0:
         cursor.execute("""
-            INSERT INTO members (name, stokvel_balance, loan_status, savings_goal)
-            VALUES ('Vho-Makhadzi', 5400.0, 'Approved for R2,000 Micro-loan', 10000.0)
+            INSERT INTO members (name, pin, gender, stokvel_balance, loan_status, savings_goal)
+            VALUES ('Vho-Makhadzi', '1234', 'Female', 5400.0, 'Approved for R2,000 Micro-loan', 10000.0)
         """)
         cursor.execute("""
-            INSERT INTO members (name, stokvel_balance, loan_status, savings_goal)
-            VALUES ('Ndivhuwo M.', 12000.0, 'Approved for R5,000 Business Loan', 15000.0)
+            INSERT INTO members (name, pin, gender, stokvel_balance, loan_status, savings_goal)
+            VALUES ('Ndivhuwo M.', '1234', 'Male', 12000.0, 'Approved for R5,000 Business Loan', 15000.0)
         """)
     conn.commit()
     conn.close()
@@ -73,25 +84,34 @@ def init_db():
 init_db()
 
 
-def get_member_data(name):
+def authenticate_user(name, pin):
     conn = sqlite3.connect("rendani.db")
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT stokvel_balance, loan_status, savings_goal FROM members WHERE name = ?",
-        (name,),
+        "SELECT stokvel_balance, loan_status, savings_goal, gender FROM members WHERE LOWER(name) = LOWER(?) AND pin = ?",
+        (name, pin),
     )
-    data = cursor.fetchone()
+    user = cursor.fetchone()
     conn.close()
-    return data
+    return user
 
 
-def get_all_member_names():
-    conn = sqlite3.connect("rendani.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT name FROM members")
-    rows = cursor.fetchall()
-    conn.close()
-    return [row[0] for row in rows]
+def register_user(name, pin, gender, balance, goal):
+    try:
+        conn = sqlite3.connect("rendani.db")
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO members (name, pin, gender, stokvel_balance, loan_status, savings_goal)
+            VALUES (?, ?, ?, ?, 'Eligible for Micro-loan', ?)
+        """,
+            (name, pin, gender, balance, goal),
+        )
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.IntegrityError:
+        return False
 
 
 def update_savings_goal(name, new_goal):
@@ -107,7 +127,7 @@ def update_savings_goal(name, new_goal):
 # ==========================================
 # 3. MUFAMADI AI BRAIN
 # ==========================================
-def mufamadi_ai_response(user_text, member_name, balance, loan_status):
+def mufamadi_ai_response(user_text, member_name, greeting, balance, loan_status):
     query = user_text.lower()
     balance_keywords = [
         "stokvel",
@@ -133,7 +153,7 @@ def mufamadi_ai_response(user_text, member_name, balance, loan_status):
 
     if any(word in query for word in balance_keywords):
         return (
-            f"🤖 **Mufamadi AI:** Ndaa {member_name}! Your total Stokvel savings balance is **R{balance:,.2f}**.\n\n"
+            f"🤖 **Mufamadi AI:** {greeting} {member_name}! Your total Stokvel savings balance is **R{balance:,.2f}**.\n\n"
             f"*(Tshivenḓa: Mugaganyo wau wa tshitaka u na R{balance:,.2f} zwa zwino.)*"
         )
     elif any(word in query for word in loan_keywords):
@@ -143,121 +163,195 @@ def mufamadi_ai_response(user_text, member_name, balance, loan_status):
         )
     else:
         return (
-            f"🤖 **Mufamadi AI:** Ndaa! I am analyzing your request. "
+            f"🤖 **Mufamadi AI:** {greeting}! I am analyzing your request. "
             f"You can ask me about your **stokvel balance**, **loan eligibility**, or **savings status** in Tshivenḓa, Sepedi, or English!"
         )
 
 
 # ==========================================
-# 4. USER INTERFACE
+# 4. SESSION STATE AUTHENTICATION CONTROL
 # ==========================================
-st.markdown("### 👤 Select Community Member Profile")
-member_list = get_all_member_names()
-member_name = st.selectbox("Choose Profile:", member_list)
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+if "user_name" not in st.session_state:
+    st.session_state["user_name"] = ""
 
-user_data = get_member_data(member_name)
 
-if user_data:
-    stokvel_bal, loan_stat, savings_goal = user_data
-    if savings_goal is None:
-        savings_goal = 10000.0
+# ==========================================
+# 5. LOGIN / REGISTER SCREEN
+# ==========================================
+if not st.session_state["logged_in"]:
+    st.markdown("### 🔑 Welcome to Rendani Community Capital")
 
-    st.markdown(f"### 🖐️ Ndaa, {member_name}!")
+    tab1, tab2 = st.tabs(["🔒 Member Login", "➕ Register New Account"])
 
-    # Quick One-Tap Action Buttons
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("💰 Check Stokvel Balance", use_container_width=True):
-            st.success(
-                f"Mufamadi AI: Your current balance is R{stokvel_bal:,.2f}"
+    # LOGIN TAB
+    with tab1:
+        st.write("Enter your member details to log in:")
+        login_name = st.text_input(
+            "Member Name:",
+            placeholder="e.g., Vho-Makhadzi or Ndivhuwo M.",
+            key="login_name_input",
+        )
+        login_pin = st.text_input(
+            "Security PIN:",
+            type="password",
+            placeholder="Default PIN: 1234",
+            key="login_pin_input",
+        )
+
+        if st.button("Log In", use_container_width=True):
+            user_data = authenticate_user(login_name, login_pin)
+            if user_data:
+                st.session_state["logged_in"] = True
+                st.session_state["user_name"] = login_name
+                st.rerun()
+            else:
+                st.error("Invalid Member Name or PIN. Please try again.")
+
+    # REGISTER TAB
+    with tab2:
+        st.write("Create a new community member profile:")
+        reg_name = st.text_input("Full Name:", key="reg_name_input")
+        reg_pin = st.text_input(
+            "Set 4-Digit Security PIN:",
+            type="password",
+            max_chars=4,
+            key="reg_pin_input",
+        )
+
+        # Male / Female Checkbox Selector
+        reg_gender = st.radio(
+            "Select Gender (for Traditional Tshivenḓa Greeting):",
+            ["Male 🧔 (Greets with NDAA!)", "Female 👩 (Greets with AH!)"],
+            key="reg_gender_input",
+        )
+        gender_val = "Male" if "Male" in reg_gender else "Female"
+
+        reg_balance = st.number_input(
+            "Initial Stokvel Deposit (R):", min_value=0.0, value=1000.0
+        )
+        reg_goal = st.number_input(
+            "Target Savings Goal (R):", min_value=500.0, value=10000.0
+        )
+
+        if st.button("Register & Join R.C.C.", use_container_width=True):
+            if reg_name and reg_pin:
+                success = register_user(
+                    reg_name, reg_pin, gender_val, reg_balance, reg_goal
+                )
+                if success:
+                    greeting_preview = "NDAA!" if gender_val == "Male" else "AH!"
+                    st.success(
+                        f"Account created successfully for {reg_name}! Mufamadi AI will greet you with '{greeting_preview}'. Please log in under the Login tab."
+                    )
+                else:
+                    st.warning("Member name already exists. Please log in.")
+            else:
+                st.warning("Please fill in both your name and security PIN.")
+
+# ==========================================
+# 6. MAIN MEMBER DASHBOARD (POST-LOGIN)
+# ==========================================
+else:
+    member_name = st.session_state["user_name"]
+
+    # Fetch User Data from DB
+    conn = sqlite3.connect("rendani.db")
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT stokvel_balance, loan_status, savings_goal, gender FROM members WHERE LOWER(name) = LOWER(?)",
+        (member_name,),
+    )
+    user_data = cursor.fetchone()
+    conn.close()
+
+    if user_data:
+        stokvel_bal, loan_stat, savings_goal, gender = user_data
+        if savings_goal is None:
+            savings_goal = 10000.0
+
+        # Dynamic Greeting based on Gender
+        greeting = "NDAA!!!" if gender == "Male" else "AH!!!"
+
+        # Header & Log Out
+        col_head1, col_head2 = st.columns([3, 1])
+        with col_head1:
+            st.markdown(f"### 🖐️ {greeting} {member_name}!")
+        with col_head2:
+            if st.button("🚪 Log Out"):
+                st.session_state["logged_in"] = False
+                st.session_state["user_name"] = ""
+                st.rerun()
+
+        # Quick Action Buttons
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💰 Check Stokvel Balance", use_container_width=True):
+                st.success(
+                    f"Mufamadi AI: {greeting} Your current balance is R{stokvel_bal:,.2f}"
+                )
+
+        with col2:
+            if st.button("💳 Check Credit & Loans", use_container_width=True):
+                st.info(f"Mufamadi AI: Credit Status — {loan_stat}")
+
+        st.divider()
+
+        # 🎯 STOKVEL SAVINGS GOAL TRACKER
+        st.markdown("### 🎯 Stokvel Savings Goal Tracker")
+        progress = (
+            min(stokvel_bal / savings_goal, 1.0) if savings_goal > 0 else 0
+        )
+        st.write(
+            f"**Target Goal:** R{savings_goal:,.2f} | **Current Balance:** R{stokvel_bal:,.2f}"
+        )
+        st.progress(progress)
+        st.write(f"📊 **Progress:** {progress * 100:.1f}% of goal reached.")
+
+        with st.expander("⚙️ Adjust Target Savings Goal"):
+            new_goal_val = st.number_input(
+                "Set New Target Goal Amount (R):",
+                value=float(savings_goal),
+                step=500.0,
             )
+            if st.button("Update Goal"):
+                update_savings_goal(member_name, new_goal_val)
+                st.success("Target savings goal updated successfully!")
+                st.rerun()
 
-    with col2:
-        if st.button("💳 Check Credit & Loans", use_container_width=True):
-            st.info(f"Mufamadi AI: Credit Status — {loan_stat}")
-
-    st.divider()
-
-    # 🎯 STOKVEL SAVINGS GOAL TRACKER
-    st.markdown("### 🎯 Stokvel Savings Goal Tracker")
-    progress = min(stokvel_bal / savings_goal, 1.0) if savings_goal > 0 else 0
-    st.write(
-        f"**Target Goal:** R{savings_goal:,.2f} | **Current Balance:** R{stokvel_bal:,.2f}"
-    )
-    st.progress(progress)
-    st.write(f"📊 **Progress:** {progress * 100:.1f}% of goal reached.")
-
-    with st.expander("⚙️ Adjust Target Savings Goal"):
-        new_goal_val = st.number_input(
-            "Set New Target Goal Amount (R):",
-            value=float(savings_goal),
-            step=500.0,
+        # Monthly Contribution Calculator
+        st.markdown("#### 🧮 Group Monthly Contribution Calculator")
+        months = st.slider(
+            "Number of months to reach remaining target:",
+            min_value=1,
+            max_value=24,
+            value=6,
         )
-        if st.button("Update Goal"):
-            update_savings_goal(member_name, new_goal_val)
-            st.success("Target savings goal updated successfully!")
-            st.rerun()
+        remaining_balance = max(savings_goal - stokvel_bal, 0)
+        monthly_payment = remaining_balance / months if months > 0 else 0
 
-    # Monthly Contribution Calculator
-    st.markdown("#### 🧮 Group Monthly Contribution Calculator")
-    months = st.slider(
-        "Number of months to reach remaining target:",
-        min_value=1,
-        max_value=24,
-        value=6,
-    )
-    remaining_balance = max(savings_goal - stokvel_bal, 0)
-    monthly_payment = remaining_balance / months if months > 0 else 0
-
-    st.info(
-        f"💡 **Mufamadi AI Calculation:** To reach your remaining goal of **R{remaining_balance:,.2f}** in {months} months, "
-        f"you need to contribute **R{monthly_payment:,.2f} / month**."
-    )
-
-    st.divider()
-
-    # 🤖 MUFAMADI AI CHATBOX
-    st.markdown("### 🎙️ Talk to Mufamadi AI Assistant")
-    st.write(
-        "Ask any financial question in **Tshivenḓa**, **Sepedi**, **Xitsonga**, or **English**:"
-    )
-
-    user_query = st.text_input(
-        "Type or tap mic on your keyboard to speak:",
-        placeholder="e.g., Ndi na gontshi muṅwaloni wanga?",
-    )
-
-    if user_query:
-        st.markdown(f"**You asked:** *\"{user_query}\"*")
-        response = mufamadi_ai_response(
-            user_query, member_name, stokvel_bal, loan_stat
+        st.info(
+            f"💡 **Mufamadi AI Calculation:** To reach your remaining goal of **R{remaining_balance:,.2f}** in {months} months, "
+            f"you need to contribute **R{monthly_payment:,.2f} / month**."
         )
-        st.success(response)
 
-st.divider()
+        st.divider()
 
-# Register New Member Form
-st.markdown("### ➕ Register New Member to Database")
-new_name = st.text_input("Member Full Name:")
-new_balance = st.number_input("Initial Stokvel Deposit (R):", min_value=0.0)
-new_goal = st.number_input(
-    "Target Savings Goal (R):", min_value=500.0, value=10000.0
-)
-
-if st.button("Save New Member"):
-    if new_name:
-        conn = sqlite3.connect("rendani.db")
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO members (name, stokvel_balance, loan_status, savings_goal)
-            VALUES (?, ?, 'Eligible for Micro-loan', ?)
-        """,
-            (new_name, new_balance, new_goal),
+        # 🤖 MUFAMADI AI CHATBOX
+        st.markdown("### 🎙️ Talk to Mufamadi AI Assistant")
+        st.write(
+            "Ask any financial question in **Tshivenḓa**, **Sepedi**, **Xitsonga**, or **English**:"
         )
-        conn.commit()
-        conn.close()
-        st.success(f"Successfully added {new_name} to database!")
-        st.rerun()
-    else:
-        st.warning("Please enter a member name.")
+
+        user_query = st.text_input(
+            "Type or tap mic on your keyboard to speak:",
+            placeholder="e.g., Ndi na gontshi muṅwaloni wanga?",
+        )
+
+        if user_query:
+            st.markdown(f"**You asked:** *\"{user_query}\"*")
+            response = mufamadi_ai_response(
+                user_query, member_name, greeting, stokvel_bal, loan_stat
+            )
+            st.success(response)
