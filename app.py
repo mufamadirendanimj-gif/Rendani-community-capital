@@ -10,7 +10,7 @@ st.set_page_config(
     page_title="Rendani Community Capital", page_icon="🏛️", layout="centered"
 )
 
-# Custom CSS to eliminate all white background elements
+# Custom CSS to eliminate white elements and style the header
 st.markdown(
     """
     <style>
@@ -25,15 +25,25 @@ st.markdown(
         visibility: hidden !important;
     }
 
-    /* Force entire app and view containers to Royal Blue with NO white flashes */
+    /* Force entire app and view containers to Royal Blue */
     .stApp, .stAppViewContainer, .main, [data-testid="stAppViewContainer"], [data-testid="stVerticalBlock"] {
         background-color: #003B82 !important;
         color: #FFFFFF !important;
     }
 
-    /* Remove default white card backgrounds on blocks/containers */
     [data-testid="stHorizontalBlock"], [data-testid="column"] {
         background-color: transparent !important;
+    }
+
+    /* Bold White Top Header */
+    .rcc-header {
+        text-align: center;
+        color: #FFFFFF;
+        font-weight: 900;
+        font-size: 32px;
+        letter-spacing: 3px;
+        margin-top: 5px;
+        margin-bottom: 10px;
     }
 
     /* White bold main heading */
@@ -41,9 +51,9 @@ st.markdown(
         text-align: center;
         color: #FFFFFF;
         font-weight: 800;
-        font-size: 26px;
+        font-size: 24px;
         letter-spacing: 1.5px;
-        margin-bottom: 25px;
+        margin-bottom: 20px;
         margin-top: 10px;
         text-transform: uppercase;
     }
@@ -140,7 +150,7 @@ if not st.session_state["splash_shown"]:
                 st.image("logo.jpg", use_container_width=True)
             else:
                 st.markdown(
-                    "<h1 style='text-align: center; color: #FFFFFF;'>🏛️<br>RENDANI COMMUNITY CAPITAL</h1>",
+                    "<h1 style='text-align: center; color: #FFFFFF;'>🏛️<br>R.C.C.</h1>",
                     unsafe_allow_html=True,
                 )
             st.markdown(
@@ -148,7 +158,7 @@ if not st.session_state["splash_shown"]:
                 unsafe_allow_html=True,
             )
 
-    time.sleep(2)  # Pause for 2 seconds on logo splash screen
+    time.sleep(2)
     st.session_state["splash_shown"] = True
     splash_placeholder.empty()
     st.rerun()
@@ -309,6 +319,9 @@ if "user_name" not in st.session_state:
 # ==========================================
 if not st.session_state["logged_in"]:
 
+    # BOLD WHITE R.C.C. TOP HEADER
+    st.markdown('<div class="rcc-header">R.C.C.</div>', unsafe_allow_html=True)
+
     tab1, tab2 = st.tabs(["CREATE ACCOUNT", "LOG IN"])
 
     # CREATE ACCOUNT TAB
@@ -464,9 +477,7 @@ else:
             if st.button("🚪 Log Out"):
                 st.session_state["logged_in"] = False
                 st.session_state["user_name"] = ""
-                st.session_state["splash_shown"] = (
-                    True  # Keep splash screen hidden on logout
-                )
+                st.session_state["splash_shown"] = True
                 st.rerun()
 
         # Quick Action Buttons
