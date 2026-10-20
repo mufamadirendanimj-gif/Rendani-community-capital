@@ -1,14 +1,28 @@
+import os
 import sqlite3
 import streamlit as st
 
-# Set page title and layout
+# ==========================================
+# 1. PAGE CONFIGURATION & LOGO
+# ==========================================
 st.set_page_config(
     page_title="Rendani Community Capital", page_icon="🏛️", layout="centered"
 )
 
+# Display Custom R.C.C. Logo if present in the folder
+if os.path.exists("logo.png"):
+    st.image("logo.png", use_container_width=True)
+elif os.path.exists("logo.jpg"):
+    st.image("logo.jpg", use_container_width=True)
+else:
+    st.title("🏛️ Rendani Community Capital")
+
+st.caption("Powered by Mufamadi AI | R.C.C. Digital Finance")
+st.divider()
+
 
 # ==========================================
-# 1. DATABASE SETUP
+# 2. DATABASE SETUP
 # ==========================================
 def init_db():
     conn = sqlite3.connect("rendani.db")
@@ -26,7 +40,11 @@ def init_db():
     if cursor.fetchone()[0] == 0:
         cursor.execute("""
             INSERT INTO members (name, stokvel_balance, loan_status, savings_goal)
-            VALUES ('Vho-Makhadzi', 5400.0, 'Approved for R2,000', 10000.0)
+            VALUES ('Vho-Makhadzi', 5400.0, 'Approved for R2,000 Micro-loan', 10000.0)
+        """)
+        cursor.execute("""
+            INSERT INTO members (name, stokvel_balance, loan_status, savings_goal)
+            VALUES ('Ndivhuwo M.', 12000.0, 'Approved for R5,000 Business Loan', 15000.0)
         """)
     conn.commit()
     conn.close()
@@ -67,7 +85,7 @@ def update_savings_goal(name, new_goal):
 
 
 # ==========================================
-# 2. MUFAMADI AI BRAIN
+# 3. MUFAMADI AI BRAIN
 # ==========================================
 def mufamadi_ai_response(user_text, member_name, balance, loan_status):
     query = user_text.lower()
@@ -80,6 +98,7 @@ def mufamadi_ai_response(user_text, member_name, balance, loan_status):
         "gontshi",
         "muṅwaloni",
         "chelete",
+        "savings",
     ]
     loan_keywords = [
         "loan",
@@ -94,7 +113,7 @@ def mufamadi_ai_response(user_text, member_name, balance, loan_status):
 
     if any(word in query for word in balance_keywords):
         return (
-            f"🤖 **Mufamadi AI:** Ndaa {member_name}! Your total Stokvel savings balance currently stands at **R{balance:,.2f}**.\n\n"
+            f"🤖 **Mufamadi AI:** Ndaa {member_name}! Your total Stokvel savings balance is **R{balance:,.2f}**.\n\n"
             f"*(Tshivenḓa: Mugaganyo wau wa tshitaka u na R{balance:,.2f} zwa zwino.)*"
         )
     elif any(word in query for word in loan_keywords):
@@ -110,14 +129,8 @@ def mufamadi_ai_response(user_text, member_name, balance, loan_status):
 
 
 # ==========================================
-# 3. USER INTERFACE
+# 4. USER INTERFACE
 # ==========================================
-st.title("🏛️ Rendani Community Capital")
-st.caption("Powered by Mufamadi AI")
-
-st.divider()
-
-# Profile Selector
 st.markdown("### 👤 Select Community Member Profile")
 member_list = get_all_member_names()
 member_name = st.selectbox("Choose Profile:", member_list)
@@ -145,10 +158,8 @@ if user_data:
 
     st.divider()
 
-    # 🎯 STOKVEL SAVINGS GOAL TRACKER & CALCULATOR
+    # 🎯 STOKVEL SAVINGS GOAL TRACKER
     st.markdown("### 🎯 Stokvel Savings Goal Tracker")
-
-    # Progress Bar Calculation
     progress = min(stokvel_bal / savings_goal, 1.0) if savings_goal > 0 else 0
     st.write(
         f"**Target Goal:** R{savings_goal:,.2f} | **Current Balance:** R{stokvel_bal:,.2f}"
@@ -156,7 +167,6 @@ if user_data:
     st.progress(progress)
     st.write(f"📊 **Progress:** {progress * 100:.1f}% of goal reached.")
 
-    # Goal Adjustment Section
     with st.expander("⚙️ Adjust Target Savings Goal"):
         new_goal_val = st.number_input(
             "Set New Target Goal Amount (R):",
@@ -188,7 +198,9 @@ if user_data:
 
     # 🤖 MUFAMADI AI CHATBOX
     st.markdown("### 🎙️ Talk to Mufamadi AI Assistant")
-    st.write("Ask any question in **Tshivenḓa**, **Sepedi**, or **English**:")
+    st.write(
+        "Ask any financial question in **Tshivenḓa**, **Sepedi**, **Xitsonga**, or **English**:"
+    )
 
     user_query = st.text_input(
         "Type or tap mic on your keyboard to speak:",
