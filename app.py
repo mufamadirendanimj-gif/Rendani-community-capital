@@ -42,7 +42,7 @@ st.divider()
 
 
 # ==========================================
-# 2. DATABASE SETUP
+# 2. SAFE DATABASE SETUP & AUTO-MIGRATION
 # ==========================================
 def init_db():
     conn = sqlite3.connect("rendani.db")
@@ -61,12 +61,18 @@ def init_db():
         )
     """)
 
-    # Check if gender column exists for existing databases
+    # Check existing columns and add missing ones safely
     cursor.execute("PRAGMA table_info(members)")
-    columns = [column[1] for column in cursor.fetchall()]
-    if "gender" not in columns:
-        cursor.execute("ALTER TABLE members ADD COLUMN gender TEXT DEFAULT 'Male'")
+    existing_columns = [column[1] for column in cursor.fetchall()]
 
+    if "pin" not in existing_columns:
+        cursor.execute("ALTER TABLE members ADD COLUMN pin TEXT DEFAULT '1234'")
+    if "gender" not in existing_columns:
+        cursor.execute(
+            "ALTER TABLE members ADD COLUMN gender TEXT DEFAULT 'Male'"
+        )
+
+    # Populate seed data if database is empty
     cursor.execute("SELECT COUNT(*) FROM members")
     if cursor.fetchone()[0] == 0:
         cursor.execute("""
@@ -77,6 +83,15 @@ def init_db():
             INSERT INTO members (name, pin, gender, stokvel_balance, loan_status, savings_goal)
             VALUES ('Ndivhuwo M.', '1234', 'Male', 12000.0, 'Approved for R5,000 Business Loan', 15000.0)
         """)
+
+    # Update existing default records to ensure valid data
+    cursor.execute(
+        "UPDATE members SET gender = 'Female' WHERE LOWER(name) LIKE '%makhadzi%'"
+    )
+    cursor.execute(
+        "UPDATE members SET pin = '1234' WHERE pin IS NULL OR pin = ''"
+    )
+
     conn.commit()
     conn.close()
 
@@ -88,7 +103,7 @@ def authenticate_user(name, pin):
     conn = sqlite3.connect("rendani.db")
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT stokvel_balance, loan_status, savings_goal, gender FROM members WHERE LOWER(name) = LOWER(?) AND pin = ?",
+        "SELECT stokvel_balance, loan_status, savings_goal, gender FROM members WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND pin = ?",
         (name, pin),
     )
     user = cursor.fetchone()
@@ -105,7 +120,7 @@ def register_user(name, pin, gender, balance, goal):
             INSERT INTO members (name, pin, gender, stokvel_balance, loan_status, savings_goal)
             VALUES (?, ?, ?, ?, 'Eligible for Micro-loan', ?)
         """,
-            (name, pin, gender, balance, goal),
+            (name.strip(), pin.strip(), gender, balance, goal),
         )
         conn.commit()
         conn.close()
@@ -118,7 +133,8 @@ def update_savings_goal(name, new_goal):
     conn = sqlite3.connect("rendani.db")
     cursor = conn.cursor()
     cursor.execute(
-        "UPDATE members SET savings_goal = ? WHERE name = ?", (new_goal, name)
+        "UPDATE members SET savings_goal = ? WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))",
+        (new_goal, name),
     )
     conn.commit()
     conn.close()
@@ -127,7 +143,9 @@ def update_savings_goal(name, new_goal):
 # ==========================================
 # 3. MUFAMADI AI BRAIN
 # ==========================================
-def mufamadi_ai_response(user_text, member_name, greeting, balance, loan_status):
+def mufamadi_ai_response(
+    user_text, member_name, greeting, balance, loan_status
+):
     query = user_text.lower()
     balance_keywords = [
         "stokvel",
@@ -190,7 +208,7 @@ if not st.session_state["logged_in"]:
         st.write("Enter your member details to log in:")
         login_name = st.text_input(
             "Member Name:",
-            placeholder="e.g., Vho-Makhadzi or Ndivhuwo M.",
+            placeholder="e.g., Ndivhuwo M. or Vho-Makhadzi",
             key="login_name_input",
         )
         login_pin = st.text_input(
@@ -204,7 +222,7 @@ if not st.session_state["logged_in"]:
             user_data = authenticate_user(login_name, login_pin)
             if user_data:
                 st.session_state["logged_in"] = True
-                st.session_state["user_name"] = login_name
+                st.session_state["user_name"] = login_name.strip()
                 st.rerun()
             else:
                 st.error("Invalid Member Name or PIN. Please try again.")
@@ -260,7 +278,7 @@ else:
     conn = sqlite3.connect("rendani.db")
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT stokvel_balance, loan_status, savings_goal, gender FROM members WHERE LOWER(name) = LOWER(?)",
+        "SELECT stokvel_balance, loan_status, savings_goal, gender FROM members WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))",
         (member_name,),
     )
     user_data = cursor.fetchone()
