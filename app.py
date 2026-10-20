@@ -3,17 +3,17 @@ import sqlite3
 import streamlit as st
 
 # ==========================================
-# 1. PAGE CONFIGURATION & CULTURAL THEMING (CSS)
+# 1. PAGE CONFIGURATION & STYLING (BLUE CULTURAL DESIGN)
 # ==========================================
 st.set_page_config(
     page_title="Rendani Community Capital", page_icon="🏛️", layout="centered"
 )
 
-# Custom Venda Cultural Theme CSS
+# Custom CSS matching your exact design design mock-up
 st.markdown(
     """
     <style>
-    /* Hide Streamlit UI elements & badges */
+    /* Hide default Streamlit headers, footers & badges */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -24,64 +24,109 @@ st.markdown(
         visibility: hidden !important;
     }
 
-    /* Venda Pattern Header Border */
-    .stAppViewContainer {
-        border-top: 6px solid #D4AF37;
-    }
-
-    /* Styling Custom Tab Headers */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 12px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        white-space: pre-wrap;
-        background-color: #1A1D20;
-        border-radius: 8px 8px 0px 0px;
-        color: #D4AF37;
-        font-weight: bold;
-        border: 1px solid #333;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #8B0000 !important;
+    /* Set main background to royal cultural blue */
+    .stApp {
+        background-color: #0A3B82 !important;
         color: #FFFFFF !important;
-        border-bottom: 3px solid #D4AF37 !important;
     }
 
-    /* Culturally Styled Buttons */
-    div.stButton > button {
-        background: linear-gradient(135deg, #8B0000 0%, #B22222 100%);
+    /* White bold main heading */
+    .signup-title {
+        text-align: center;
         color: #FFFFFF;
-        font-weight: bold;
-        border-radius: 8px;
-        border: 1px solid #D4AF37;
-        padding: 0.6rem 1rem;
-        transition: all 0.3s ease;
+        font-weight: 800;
+        font-size: 26px;
+        letter-spacing: 1.5px;
+        margin-bottom: 25px;
+        margin-top: 10px;
+        text-transform: uppercase;
+    }
+
+    /* Input fields with Venda stripe bottom border */
+    .stTextInput input {
+        background-color: #FFFFFF !important;
+        color: #333333 !important;
+        border-radius: 14px !important;
+        padding: 12px 16px !important;
+        border: none !important;
+        border-bottom: 6px solid #8B0000 !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+        font-size: 15px !important;
+    }
+
+    /* Colorful Divider Bar */
+    .cultural-divider {
+        height: 12px;
+        background: linear-gradient(90deg, 
+            #000000 0%, #000000 10%, 
+            #8B0000 10%, #8B0000 25%, 
+            #D4AF37 25%, #D4AF37 40%, 
+            #008000 40%, #008000 55%, 
+            #8B0000 55%, #8B0000 70%, 
+            #000000 70%, #000000 85%,
+            #D4AF37 85%, #D4AF37 100%);
+        border-radius: 4px;
+        margin: 25px 0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+
+    /* Radio button selection styling for Gender */
+    div[data-testid="stMarkdownContainer"] p {
+        color: #FFFFFF !important;
+        font-weight: 600;
+    }
+
+    /* Main Action Button (SIGN UP) */
+    div.stButton > button {
+        background-color: #0F2D6B !important;
+        color: #FFFFFF !important;
+        font-size: 18px !important;
+        font-weight: 800 !important;
+        letter-spacing: 1.2px !important;
+        border-radius: 16px !important;
+        padding: 14px !important;
+        border: none !important;
+        border-left: 8px solid #8B0000 !important;
+        border-right: 8px solid #8B0000 !important;
+        box-shadow: 0 6px 14px rgba(0,0,0,0.4) !important;
+        text-transform: uppercase !important;
+        transition: transform 0.2s ease !important;
     }
     div.stButton > button:hover {
-        background: linear-gradient(135deg, #D4AF37 0%, #FFD700 100%);
-        color: #1A1D20;
-        border: 1px solid #8B0000;
+        transform: scale(1.02) !important;
+        background-color: #163B88 !important;
+    }
+
+    /* Custom Labels */
+    label {
+        color: #FFFFFF !important;
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.8px !important;
+        text-transform: uppercase !important;
+    }
+
+    /* Subtext links */
+    .switch-link {
+        text-align: center;
+        color: #E0E0E0;
+        font-size: 14px;
+        margin-top: 15px;
     }
     </style>
 """,
     unsafe_allow_html=True,
 )
 
-# Display Custom R.C.C. Logo if present
+# Optional Custom Logo
 if os.path.exists("logo.png"):
-    st.image("logo.png", use_container_width=True)
+    st.image("logo.png", width=140)
 elif os.path.exists("logo.jpg"):
-    st.image("logo.jpg", use_container_width=True)
-else:
-    st.title("🏛️ Rendani Community Capital")
-
-st.caption(" Powered by Mufamadi AI | R.C.C. Digital Finance")
-st.divider()
+    st.image("logo.jpg", width=140)
 
 
 # ==========================================
-# 2. SAFE DATABASE SETUP & MIGRATION
+# 2. SAFE DATABASE SETUP
 # ==========================================
 def init_db():
     conn = sqlite3.connect("rendani.db")
@@ -231,85 +276,67 @@ if "user_name" not in st.session_state:
 
 
 # ==========================================
-# 5. CULTURAL LOGIN / SIGN UP SCREEN
+# 5. CUSTOM DESIGNED SIGN-UP & LOGIN SCREEN
 # ==========================================
 if not st.session_state["logged_in"]:
-    st.markdown(
-        """
-        <div style="text-align: center; background-color: #1A1D20; padding: 15px; border-radius: 10px; border-left: 5px solid #D4AF37; margin-bottom: 20px;">
-            <h2 style="color: #D4AF37; margin:0;">🥁 Ndaa & Aa! Welcome to R.C.C.</h2>
-            <p style="color: #CCCCCC; font-size: 14px; margin-top: 5px;">Empowering Rural Community Finance & Savings</p>
-        </div>
-    """,
-        unsafe_allow_html=True,
-    )
 
-    tab1, tab2 = st.tabs(
-        ["🔑 Member Sign In (Log In)", "➕ New Member Sign Up"]
-    )
+    tab1, tab2 = st.tabs(["SIGN UP", "LOG IN"])
 
-    # LOGIN TAB
+    # SIGN UP TAB (Matching Image Design)
     with tab1:
-        st.markdown("#### 🔒 Sign In to Your Community Account")
-        login_name = st.text_input(
-            "👤 Full Member Name:",
-            placeholder="e.g., Ndivhuwo M. or Vho-Makhadzi",
-            key="login_name_input",
-        )
-        login_pin = st.text_input(
-            "🔐 4-Digit Security PIN:",
-            type="password",
-            placeholder="Enter PIN (Default: 1234)",
-            key="login_pin_input",
+        st.markdown(
+            '<div class="signup-title">CREATE YOUR<br>ACCOUNT</div>',
+            unsafe_allow_html=True,
         )
 
-        if st.button("🔑 Log In to Dashboard", use_container_width=True):
-            user_data = authenticate_user(login_name, login_pin)
-            if user_data:
-                st.session_state["logged_in"] = True
-                st.session_state["user_name"] = login_name.strip()
-                st.rerun()
-            else:
-                st.error("❌ Invalid Member Name or PIN. Please try again.")
-
-    # REGISTER TAB
-    with tab2:
-        st.markdown("#### 📝 Register New Community Profile")
-        reg_name = st.text_input("👤 Full Name:", key="reg_name_input")
+        reg_name = st.text_input(
+            "Username / Email",
+            placeholder="Username / Email",
+            key="reg_name_input",
+            label_visibility="collapsed",
+        )
         reg_pin = st.text_input(
-            "🔐 Set 4-Digit Security PIN:",
+            "Password",
             type="password",
-            max_chars=4,
+            placeholder="Password / PIN",
             key="reg_pin_input",
+            label_visibility="collapsed",
         )
 
-        # Culturally Grounded Gender Greeting Selector
-        reg_gender = st.radio(
-            "👑 Select Gender (for Traditional Greeting Etiquette):",
-            [
-                "🧔 Male Member (Greets with NDAA!)",
-                "👩 Female Member (Greets with AA!)",
-            ],
-            key="reg_gender_input",
+        # Cultural Pattern Divider Line
+        st.markdown(
+            '<div class="cultural-divider"></div>', unsafe_allow_html=True
         )
-        gender_val = "Male" if "Male" in reg_gender else "Female"
+
+        st.markdown(
+            '<p style="text-align: center; font-weight: bold; font-size: 14px; letter-spacing: 1px; color: #FFFFFF;">SELECT GENDER</p>',
+            unsafe_allow_html=True,
+        )
+
+        # Gender Selection Cards
+        gender_col1, gender_col2 = st.columns(2)
+        with gender_col1:
+            male_selected = st.checkbox("🧔 MALE (NDAA!)", value=True)
+        with gender_col2:
+            female_selected = st.checkbox("👩 FEMALE (AA!)", value=False)
+
+        gender_val = "Male" if male_selected else "Female"
 
         reg_balance = st.number_input(
-            "💰 Initial Stokvel Contribution (R):",
+            "Initial Stokvel Contribution (R):",
             min_value=0.0,
             value=1000.0,
             step=100.0,
         )
         reg_goal = st.number_input(
-            "🎯 Target Savings Goal (R):",
+            "Target Savings Goal (R):",
             min_value=500.0,
             value=10000.0,
             step=500.0,
         )
 
-        if st.button(
-            "🥁 Register & Join Rendani Capital", use_container_width=True
-        ):
+        st.write("")
+        if st.button("SIGN UP", use_container_width=True):
             if reg_name and reg_pin:
                 success = register_user(
                     reg_name, reg_pin, gender_val, reg_balance, reg_goal
@@ -317,15 +344,52 @@ if not st.session_state["logged_in"]:
                 if success:
                     greeting_preview = "NDAA!" if gender_val == "Male" else "AA!"
                     st.success(
-                        f"✅ Welcome {reg_name}! Your account has been registered. "
-                        f"Mufamadi AI will greet you with '{greeting_preview}'. Please switch to the Sign In tab to log in."
+                        f"✅ Account created successfully for {reg_name}! Mufamadi AI will greet you with '{greeting_preview}'. Please click LOG IN tab above."
                     )
                 else:
-                    st.warning(
-                        "⚠️ Member name already exists. Please log in under the Sign In tab."
-                    )
+                    st.warning("⚠️ Member name already exists. Please Log In.")
             else:
-                st.warning("⚠️ Please provide both a Full Name and PIN.")
+                st.warning("⚠️ Please fill in both Username and Password.")
+
+        st.markdown(
+            '<p class="switch-link">Already have an account? Switch to <b>LOG IN</b> tab above.</p>',
+            unsafe_allow_html=True,
+        )
+
+    # LOG IN TAB
+    with tab2:
+        st.markdown(
+            '<div class="signup-title">LOG IN TO YOUR<br>ACCOUNT</div>',
+            unsafe_allow_html=True,
+        )
+
+        login_name = st.text_input(
+            "Username / Email",
+            placeholder="Username / Email",
+            key="login_name_input",
+            label_visibility="collapsed",
+        )
+        login_pin = st.text_input(
+            "Password",
+            type="password",
+            placeholder="Password / PIN",
+            key="login_pin_input",
+            label_visibility="collapsed",
+        )
+
+        st.markdown(
+            '<div class="cultural-divider"></div>', unsafe_allow_html=True
+        )
+
+        if st.button("LOG IN", use_container_width=True):
+            user_data = authenticate_user(login_name, login_pin)
+            if user_data:
+                st.session_state["logged_in"] = True
+                st.session_state["user_name"] = login_name.strip()
+                st.rerun()
+            else:
+                st.error("❌ Invalid Username or Password. Please try again.")
+
 
 # ==========================================
 # 6. MAIN MEMBER DASHBOARD (POST-LOGIN)
@@ -348,7 +412,6 @@ else:
         if savings_goal is None:
             savings_goal = 10000.0
 
-        # Traditional Greeting Assignment
         greeting = "NDAA!!!" if gender == "Male" else "AA!!!"
 
         # Header & Log Out
