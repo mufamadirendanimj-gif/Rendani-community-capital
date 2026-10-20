@@ -1,19 +1,20 @@
 import os
 import sqlite3
+import time
 import streamlit as st
 
 # ==========================================
-# 1. PAGE CONFIGURATION & STYLING (BLUE CULTURAL DESIGN)
+# 1. PAGE CONFIGURATION & BACKGROUND OVERRIDES
 # ==========================================
 st.set_page_config(
     page_title="Rendani Community Capital", page_icon="🏛️", layout="centered"
 )
 
-# Custom CSS matching your exact design design mock-up
+# Custom CSS to eliminate all white background elements
 st.markdown(
     """
     <style>
-    /* Hide default Streamlit headers, footers & badges */
+    /* Hide Streamlit UI elements & badges */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -24,10 +25,15 @@ st.markdown(
         visibility: hidden !important;
     }
 
-    /* Set main background to royal cultural blue */
-    .stApp {
-        background-color: #0A3B82 !important;
+    /* Force entire app and view containers to Royal Blue with NO white flashes */
+    .stApp, .stAppViewContainer, .main, [data-testid="stAppViewContainer"], [data-testid="stVerticalBlock"] {
+        background-color: #003B82 !important;
         color: #FFFFFF !important;
+    }
+
+    /* Remove default white card backgrounds on blocks/containers */
+    [data-testid="stHorizontalBlock"], [data-testid="column"] {
+        background-color: transparent !important;
     }
 
     /* White bold main heading */
@@ -42,52 +48,55 @@ st.markdown(
         text-transform: uppercase;
     }
 
-    /* Input fields with Venda stripe bottom border */
+    /* Clean white rounded input fields */
     .stTextInput input {
         background-color: #FFFFFF !important;
         color: #333333 !important;
-        border-radius: 14px !important;
-        padding: 12px 16px !important;
+        border-radius: 12px !important;
+        padding: 14px 16px !important;
         border: none !important;
-        border-bottom: 6px solid #8B0000 !important;
         box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
         font-size: 15px !important;
     }
 
-    /* Colorful Divider Bar */
+    /* Traditional Multi-Colored Venda Stripe Bar */
     .cultural-divider {
-        height: 12px;
-        background: linear-gradient(90deg, 
-            #000000 0%, #000000 10%, 
-            #8B0000 10%, #8B0000 25%, 
-            #D4AF37 25%, #D4AF37 40%, 
-            #008000 40%, #008000 55%, 
-            #8B0000 55%, #8B0000 70%, 
-            #000000 70%, #000000 85%,
-            #D4AF37 85%, #D4AF37 100%);
+        height: 24px;
+        background: repeating-linear-gradient(
+            90deg,
+            #000000, #000000 6px,
+            #8B0000 6px, #8B0000 12px,
+            #D4AF37 12px, #D4AF37 18px,
+            #008000 18px, #008000 24px,
+            #003B82 24px, #003B82 30px
+        );
         border-radius: 4px;
         margin: 25px 0;
         box-shadow: 0 2px 6px rgba(0,0,0,0.4);
     }
 
-    /* Radio button selection styling for Gender */
-    div[data-testid="stMarkdownContainer"] p {
-        color: #FFFFFF !important;
-        font-weight: 600;
+    /* Gender Selection Blue Cards */
+    .gender-card-male, .gender-card-female {
+        background-color: #1D5BB2;
+        border-radius: 16px;
+        padding: 15px;
+        text-align: center;
+        border: 2px solid #2B6FC9;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
-    /* Main Action Button (SIGN UP) */
+    /* Action Button (SIGN UP / LOG IN) matching capsule design */
     div.stButton > button {
         background-color: #0F2D6B !important;
         color: #FFFFFF !important;
         font-size: 18px !important;
         font-weight: 800 !important;
-        letter-spacing: 1.2px !important;
-        border-radius: 16px !important;
+        letter-spacing: 1.5px !important;
+        border-radius: 20px !important;
         padding: 14px !important;
         border: none !important;
-        border-left: 8px solid #8B0000 !important;
-        border-right: 8px solid #8B0000 !important;
+        border-left: 10px solid #8B0000 !important;
+        border-right: 10px solid #8B0000 !important;
         box-shadow: 0 6px 14px rgba(0,0,0,0.4) !important;
         text-transform: uppercase !important;
         transition: transform 0.2s ease !important;
@@ -97,16 +106,10 @@ st.markdown(
         background-color: #163B88 !important;
     }
 
-    /* Custom Labels */
-    label {
+    /* Labels & Switch Links */
+    label, p, span {
         color: #FFFFFF !important;
-        font-size: 14px !important;
-        font-weight: 700 !important;
-        letter-spacing: 0.8px !important;
-        text-transform: uppercase !important;
     }
-
-    /* Subtext links */
     .switch-link {
         text-align: center;
         color: #E0E0E0;
@@ -118,15 +121,41 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Optional Custom Logo
-if os.path.exists("logo.png"):
-    st.image("logo.png", width=140)
-elif os.path.exists("logo.jpg"):
-    st.image("logo.jpg", width=140)
+
+# ==========================================
+# 2. 2-SECOND SPLASH SCREEN LOGIC
+# ==========================================
+if "splash_shown" not in st.session_state:
+    st.session_state["splash_shown"] = False
+
+if not st.session_state["splash_shown"]:
+    splash_placeholder = st.empty()
+    with splash_placeholder.container():
+        st.markdown("<br><br><br>", unsafe_allow_html=True)
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if os.path.exists("logo.png"):
+                st.image("logo.png", use_container_width=True)
+            elif os.path.exists("logo.jpg"):
+                st.image("logo.jpg", use_container_width=True)
+            else:
+                st.markdown(
+                    "<h1 style='text-align: center; color: #FFFFFF;'>🏛️<br>RENDANI COMMUNITY CAPITAL</h1>",
+                    unsafe_allow_html=True,
+                )
+            st.markdown(
+                "<p style='text-align: center; color: #D4AF37; font-weight: bold;'>Powered by Mufamadi AI</p>",
+                unsafe_allow_html=True,
+            )
+
+    time.sleep(2)  # Pause for 2 seconds on logo splash screen
+    st.session_state["splash_shown"] = True
+    splash_placeholder.empty()
+    st.rerun()
 
 
 # ==========================================
-# 2. SAFE DATABASE SETUP
+# 3. DATABASE SETUP & MIGRATION
 # ==========================================
 def init_db():
     conn = sqlite3.connect("rendani.db")
@@ -221,7 +250,7 @@ def update_savings_goal(name, new_goal):
 
 
 # ==========================================
-# 3. MUFAMADI AI BRAIN
+# 4. MUFAMADI AI BRAIN
 # ==========================================
 def mufamadi_ai_response(
     user_text, member_name, greeting, balance, loan_status
@@ -267,7 +296,7 @@ def mufamadi_ai_response(
 
 
 # ==========================================
-# 4. SESSION STATE AUTHENTICATION CONTROL
+# 5. SESSION STATE AUTHENTICATION CONTROL
 # ==========================================
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
@@ -276,13 +305,13 @@ if "user_name" not in st.session_state:
 
 
 # ==========================================
-# 5. CUSTOM DESIGNED SIGN-UP & LOGIN SCREEN
+# 6. SIGN-UP & LOGIN SCREEN
 # ==========================================
 if not st.session_state["logged_in"]:
 
-    tab1, tab2 = st.tabs(["SIGN UP", "LOG IN"])
+    tab1, tab2 = st.tabs(["CREATE ACCOUNT", "LOG IN"])
 
-    # SIGN UP TAB (Matching Image Design)
+    # CREATE ACCOUNT TAB
     with tab1:
         st.markdown(
             '<div class="signup-title">CREATE YOUR<br>ACCOUNT</div>',
@@ -298,41 +327,54 @@ if not st.session_state["logged_in"]:
         reg_pin = st.text_input(
             "Password",
             type="password",
-            placeholder="Password / PIN",
+            placeholder="Password",
             key="reg_pin_input",
             label_visibility="collapsed",
         )
 
-        # Cultural Pattern Divider Line
+        # Colorful Venda Striped Pattern
         st.markdown(
             '<div class="cultural-divider"></div>', unsafe_allow_html=True
         )
 
         st.markdown(
-            '<p style="text-align: center; font-weight: bold; font-size: 14px; letter-spacing: 1px; color: #FFFFFF;">SELECT GENDER</p>',
+            '<p style="text-align: center; font-weight: 800; font-size: 14px; letter-spacing: 1px; color: #FFFFFF;">SELECT GENDER</p>',
             unsafe_allow_html=True,
         )
 
-        # Gender Selection Cards
+        # Gender Selection Cards with Silhouette Icons
         gender_col1, gender_col2 = st.columns(2)
         with gender_col1:
-            male_selected = st.checkbox("🧔 MALE (NDAA!)", value=True)
+            st.markdown(
+                """
+                <div class="gender-card-male">
+                    <p style="font-size:32px; margin:0;">🧔</p>
+                    <p style="font-weight:bold; margin:0; font-size:13px;">MALE (NDAA!)</p>
+                </div>
+            """,
+                unsafe_allow_html=True,
+            )
+            male_selected = st.checkbox("Select Male", value=True)
+
         with gender_col2:
-            female_selected = st.checkbox("👩 FEMALE (AA!)", value=False)
+            st.markdown(
+                """
+                <div class="gender-card-female">
+                    <p style="font-size:32px; margin:0;">👩</p>
+                    <p style="font-weight:bold; margin:0; font-size:13px;">FEMALE (AA!)</p>
+                </div>
+            """,
+                unsafe_allow_html=True,
+            )
+            female_selected = st.checkbox("Select Female", value=False)
 
         gender_val = "Male" if male_selected else "Female"
 
         reg_balance = st.number_input(
-            "Initial Stokvel Contribution (R):",
-            min_value=0.0,
-            value=1000.0,
-            step=100.0,
+            "Initial Stokvel Deposit (R):", min_value=0.0, value=1000.0
         )
         reg_goal = st.number_input(
-            "Target Savings Goal (R):",
-            min_value=500.0,
-            value=10000.0,
-            step=500.0,
+            "Target Savings Goal (R):", min_value=500.0, value=10000.0
         )
 
         st.write("")
@@ -344,7 +386,7 @@ if not st.session_state["logged_in"]:
                 if success:
                     greeting_preview = "NDAA!" if gender_val == "Male" else "AA!"
                     st.success(
-                        f"✅ Account created successfully for {reg_name}! Mufamadi AI will greet you with '{greeting_preview}'. Please click LOG IN tab above."
+                        f"✅ Account created successfully for {reg_name}! Mufamadi AI will greet you with '{greeting_preview}'. Switch to LOG IN tab above."
                     )
                 else:
                     st.warning("⚠️ Member name already exists. Please Log In.")
@@ -352,7 +394,7 @@ if not st.session_state["logged_in"]:
                 st.warning("⚠️ Please fill in both Username and Password.")
 
         st.markdown(
-            '<p class="switch-link">Already have an account? Switch to <b>LOG IN</b> tab above.</p>',
+            '<p class="switch-link">Already have an account? <b>Log In</b> above.</p>',
             unsafe_allow_html=True,
         )
 
@@ -372,7 +414,7 @@ if not st.session_state["logged_in"]:
         login_pin = st.text_input(
             "Password",
             type="password",
-            placeholder="Password / PIN",
+            placeholder="Password",
             key="login_pin_input",
             label_visibility="collapsed",
         )
@@ -392,7 +434,7 @@ if not st.session_state["logged_in"]:
 
 
 # ==========================================
-# 6. MAIN MEMBER DASHBOARD (POST-LOGIN)
+# 7. MAIN MEMBER DASHBOARD (POST-LOGIN)
 # ==========================================
 else:
     member_name = st.session_state["user_name"]
@@ -422,6 +464,9 @@ else:
             if st.button("🚪 Log Out"):
                 st.session_state["logged_in"] = False
                 st.session_state["user_name"] = ""
+                st.session_state["splash_shown"] = (
+                    True  # Keep splash screen hidden on logout
+                )
                 st.rerun()
 
         # Quick Action Buttons
