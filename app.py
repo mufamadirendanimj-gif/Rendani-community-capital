@@ -104,7 +104,7 @@ st.markdown(
     .gender-svg {
         width: 48px;
         height: 64px;
-        fill: #1A1A1A;
+        fill: #FFFFFF;
         margin-bottom: 8px;
     }
 
@@ -112,7 +112,7 @@ st.markdown(
         font-weight: 800;
         font-size: 14px;
         letter-spacing: 1px;
-        color: #112A50;
+        color: #FFFFFF;
         margin: 0;
     }
 
@@ -195,33 +195,39 @@ if not st.session_state["splash_shown"]:
 
 
 # ==========================================
-# 3. DATABASE SETUP & MIGRATION
+# 3. SAFE DATABASE SETUP & AUTO-RESET
 # ==========================================
 def init_db():
     conn = sqlite3.connect("rendani.db")
     cursor = conn.cursor()
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS members (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE,
-            pin TEXT DEFAULT '1234',
-            gender TEXT DEFAULT 'Male',
-            stokvel_balance REAL,
-            loan_status TEXT,
-            savings_goal REAL DEFAULT 10000.0
-        )
-    """)
-
-    cursor.execute("PRAGMA table_info(members)")
-    existing_columns = [column[1] for column in cursor.fetchall()]
-
-    if "pin" not in existing_columns:
-        cursor.execute("ALTER TABLE members ADD COLUMN pin TEXT DEFAULT '1234'")
-    if "gender" not in existing_columns:
-        cursor.execute(
-            "ALTER TABLE members ADD COLUMN gender TEXT DEFAULT 'Male'"
-        )
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS members (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE,
+                pin TEXT DEFAULT '1234',
+                gender TEXT DEFAULT 'Male',
+                stokvel_balance REAL,
+                loan_status TEXT,
+                savings_goal REAL DEFAULT 10000.0
+            )
+        """)
+        conn.commit()
+    except Exception:
+        # If schema conflicts with old table, safely recreate it
+        cursor.execute("DROP TABLE IF EXISTS members")
+        cursor.execute("""
+            CREATE TABLE members (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE,
+                pin TEXT DEFAULT '1234',
+                gender TEXT DEFAULT 'Male',
+                stokvel_balance REAL,
+                loan_status TEXT,
+                savings_goal REAL DEFAULT 10000.0
+            )
+        """)
+        conn.commit()
 
     cursor.execute("SELECT COUNT(*) FROM members")
     if cursor.fetchone()[0] == 0:
@@ -233,15 +239,7 @@ def init_db():
             INSERT INTO members (name, pin, gender, stokvel_balance, loan_status, savings_goal)
             VALUES ('Ndivhuwo M.', '1234', 'Male', 12000.0, 'Approved for R5,000 Business Loan', 15000.0)
         """)
-
-    cursor.execute(
-        "UPDATE members SET gender = 'Female' WHERE LOWER(name) LIKE '%makhadzi%'"
-    )
-    cursor.execute(
-        "UPDATE members SET pin = '1234' WHERE pin IS NULL OR pin = ''"
-    )
-
-    conn.commit()
+        conn.commit()
     conn.close()
 
 
@@ -393,12 +391,9 @@ if not st.session_state["logged_in"]:
                 """
                 <div class="gender-card">
                     <svg class="gender-svg" viewBox="0 0 24 24">
-                        <!-- Head -->
                         <circle cx="12" cy="5" r="3"/>
-                        <!-- Body with cultural patterned loincloth / shorts -->
                         <path d="M9 9h6v6H9z"/>
-                        <!-- Legs -->
-                        <path d="M10 15v7M14 15v7" stroke="#1A1A1A" stroke-width="2"/>
+                        <path d="M10 15v7M14 15v7" stroke="#FFFFFF" stroke-width="2"/>
                     </svg>
                     <p class="gender-label">MALE</p>
                 </div>
@@ -411,13 +406,10 @@ if not st.session_state["logged_in"]:
                 """
                 <div class="gender-card">
                     <svg class="gender-svg" viewBox="0 0 24 24">
-                        <!-- Head with traditional headpiece circle -->
                         <circle cx="12" cy="4" r="2.5"/>
-                        <circle cx="12" cy="1.5" r="1.2" fill="#1A1A1A"/>
-                        <!-- Body with traditional flared skirt -->
+                        <circle cx="12" cy="1.5" r="1.2" fill="#FFFFFF"/>
                         <path d="M12 7 L7 17 L17 17 Z"/>
-                        <!-- Legs -->
-                        <path d="M10.5 17v5M13.5 17v5" stroke="#1A1A1A" stroke-width="2"/>
+                        <path d="M10.5 17v5M13.5 17v5" stroke="#FFFFFF" stroke-width="2"/>
                     </svg>
                     <p class="gender-label">FEMALE</p>
                 </div>
@@ -425,7 +417,6 @@ if not st.session_state["logged_in"]:
                 unsafe_allow_html=True,
             )
 
-        # Gender selection radio aligned below cards
         selected_gender_choice = st.radio(
             "Choose Gender:",
             ["MALE (NDAA!)", "FEMALE (AA!)"],
