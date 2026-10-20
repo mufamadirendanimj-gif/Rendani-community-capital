@@ -3,17 +3,24 @@ import sqlite3
 import streamlit as st
 
 # ==========================================
-# 1. PAGE CONFIGURATION & LOGO
+# 1. PAGE CONFIGURATION & HIDE BADGES/HEADERS
 # ==========================================
 st.set_page_config(
     page_title="Rendani Community Capital", page_icon="🏛️", layout="centered"
 )
-# Hide WebIntoApp floating badges / buttons
+
+# Hide Streamlit UI elements, headers, footers & WebIntoApp badges
 st.markdown(
     """
     <style>
-    /* Hides floating WebIntoApp elements */
-    iframe[src*="webintoapp"], div[class*="webintoapp"], .floating-badge, #webintoapp-badge {
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Target WebIntoApp and Streamlit Cloud floating badges */
+    .viewerBadge_container__1QSob, .styles_viewerBadge__1yB5_, 
+    [data-testid="stDecoration"], [data-testid="stStatusWidget"],
+    .floating-badge, #webintoapp-badge, iframe[src*="webintoapp"] {
         display: none !important;
         visibility: hidden !important;
     }
