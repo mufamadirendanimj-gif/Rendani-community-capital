@@ -3,26 +3,65 @@ import sqlite3
 import streamlit as st
 
 # ==========================================
-# 1. PAGE CONFIGURATION & STYLING
+# 1. PAGE CONFIGURATION & CULTURAL THEMING (CSS)
 # ==========================================
 st.set_page_config(
     page_title="Rendani Community Capital", page_icon="🏛️", layout="centered"
 )
 
-# Hide Streamlit UI elements, headers, footers & badges
+# Custom Venda Cultural Theme CSS
 st.markdown(
     """
     <style>
+    /* Hide Streamlit UI elements & badges */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    
-    /* Hide floating badges */
     .viewerBadge_container__1QSob, .styles_viewerBadge__1yB5_, 
     [data-testid="stDecoration"], [data-testid="stStatusWidget"],
     .floating-badge, #webintoapp-badge, iframe[src*="webintoapp"] {
         display: none !important;
         visibility: hidden !important;
+    }
+
+    /* Venda Pattern Header Border */
+    .stAppViewContainer {
+        border-top: 6px solid #D4AF37;
+    }
+
+    /* Styling Custom Tab Headers */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 12px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        white-space: pre-wrap;
+        background-color: #1A1D20;
+        border-radius: 8px 8px 0px 0px;
+        color: #D4AF37;
+        font-weight: bold;
+        border: 1px solid #333;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #8B0000 !important;
+        color: #FFFFFF !important;
+        border-bottom: 3px solid #D4AF37 !important;
+    }
+
+    /* Culturally Styled Buttons */
+    div.stButton > button {
+        background: linear-gradient(135deg, #8B0000 0%, #B22222 100%);
+        color: #FFFFFF;
+        font-weight: bold;
+        border-radius: 8px;
+        border: 1px solid #D4AF37;
+        padding: 0.6rem 1rem;
+        transition: all 0.3s ease;
+    }
+    div.stButton > button:hover {
+        background: linear-gradient(135deg, #D4AF37 0%, #FFD700 100%);
+        color: #1A1D20;
+        border: 1px solid #8B0000;
     }
     </style>
 """,
@@ -37,18 +76,17 @@ elif os.path.exists("logo.jpg"):
 else:
     st.title("🏛️ Rendani Community Capital")
 
-st.caption("Powered by Mufamadi AI | R.C.C. Digital Finance")
+st.caption(" Powered by Mufamadi AI | R.C.C. Digital Finance")
 st.divider()
 
 
 # ==========================================
-# 2. SAFE DATABASE SETUP & AUTO-MIGRATION
+# 2. SAFE DATABASE SETUP & MIGRATION
 # ==========================================
 def init_db():
     conn = sqlite3.connect("rendani.db")
     cursor = conn.cursor()
 
-    # Create table if it doesn't exist
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS members (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,7 +99,6 @@ def init_db():
         )
     """)
 
-    # Check existing columns and add missing ones safely
     cursor.execute("PRAGMA table_info(members)")
     existing_columns = [column[1] for column in cursor.fetchall()]
 
@@ -72,7 +109,6 @@ def init_db():
             "ALTER TABLE members ADD COLUMN gender TEXT DEFAULT 'Male'"
         )
 
-    # Populate seed data if database is empty
     cursor.execute("SELECT COUNT(*) FROM members")
     if cursor.fetchone()[0] == 0:
         cursor.execute("""
@@ -84,7 +120,6 @@ def init_db():
             VALUES ('Ndivhuwo M.', '1234', 'Male', 12000.0, 'Approved for R5,000 Business Loan', 15000.0)
         """)
 
-    # Update existing default records to ensure valid data
     cursor.execute(
         "UPDATE members SET gender = 'Female' WHERE LOWER(name) LIKE '%makhadzi%'"
     )
@@ -196,77 +231,101 @@ if "user_name" not in st.session_state:
 
 
 # ==========================================
-# 5. LOGIN / REGISTER SCREEN
+# 5. CULTURAL LOGIN / SIGN UP SCREEN
 # ==========================================
 if not st.session_state["logged_in"]:
-    st.markdown("### 🔑 Welcome to Rendani Community Capital")
+    st.markdown(
+        """
+        <div style="text-align: center; background-color: #1A1D20; padding: 15px; border-radius: 10px; border-left: 5px solid #D4AF37; margin-bottom: 20px;">
+            <h2 style="color: #D4AF37; margin:0;">🥁 Ndaa & Aa! Welcome to R.C.C.</h2>
+            <p style="color: #CCCCCC; font-size: 14px; margin-top: 5px;">Empowering Rural Community Finance & Savings</p>
+        </div>
+    """,
+        unsafe_allow_html=True,
+    )
 
-    tab1, tab2 = st.tabs(["🔒 Member Login", "➕ Register New Account"])
+    tab1, tab2 = st.tabs(
+        ["🔑 Member Sign In (Log In)", "➕ New Member Sign Up"]
+    )
 
     # LOGIN TAB
     with tab1:
-        st.write("Enter your member details to log in:")
+        st.markdown("#### 🔒 Sign In to Your Community Account")
         login_name = st.text_input(
-            "Member Name:",
+            "👤 Full Member Name:",
             placeholder="e.g., Ndivhuwo M. or Vho-Makhadzi",
             key="login_name_input",
         )
         login_pin = st.text_input(
-            "Security PIN:",
+            "🔐 4-Digit Security PIN:",
             type="password",
-            placeholder="Default PIN: 1234",
+            placeholder="Enter PIN (Default: 1234)",
             key="login_pin_input",
         )
 
-        if st.button("Log In", use_container_width=True):
+        if st.button("🔑 Log In to Dashboard", use_container_width=True):
             user_data = authenticate_user(login_name, login_pin)
             if user_data:
                 st.session_state["logged_in"] = True
                 st.session_state["user_name"] = login_name.strip()
                 st.rerun()
             else:
-                st.error("Invalid Member Name or PIN. Please try again.")
+                st.error("❌ Invalid Member Name or PIN. Please try again.")
 
     # REGISTER TAB
     with tab2:
-        st.write("Create a new community member profile:")
-        reg_name = st.text_input("Full Name:", key="reg_name_input")
+        st.markdown("#### 📝 Register New Community Profile")
+        reg_name = st.text_input("👤 Full Name:", key="reg_name_input")
         reg_pin = st.text_input(
-            "Set 4-Digit Security PIN:",
+            "🔐 Set 4-Digit Security PIN:",
             type="password",
             max_chars=4,
             key="reg_pin_input",
         )
 
-        # Male / Female Checkbox Selector
+        # Culturally Grounded Gender Greeting Selector
         reg_gender = st.radio(
-            "Select Gender (for Traditional Tshivenḓa Greeting):",
-            ["Male 🧔 (Greets with NDAA!)", "Female 👩 (Greets with AH!)"],
+            "👑 Select Gender (for Traditional Greeting Etiquette):",
+            [
+                "🧔 Male Member (Greets with NDAA!)",
+                "👩 Female Member (Greets with AA!)",
+            ],
             key="reg_gender_input",
         )
         gender_val = "Male" if "Male" in reg_gender else "Female"
 
         reg_balance = st.number_input(
-            "Initial Stokvel Deposit (R):", min_value=0.0, value=1000.0
+            "💰 Initial Stokvel Contribution (R):",
+            min_value=0.0,
+            value=1000.0,
+            step=100.0,
         )
         reg_goal = st.number_input(
-            "Target Savings Goal (R):", min_value=500.0, value=10000.0
+            "🎯 Target Savings Goal (R):",
+            min_value=500.0,
+            value=10000.0,
+            step=500.0,
         )
 
-        if st.button("Register & Join R.C.C.", use_container_width=True):
+        if st.button(
+            "🥁 Register & Join Rendani Capital", use_container_width=True
+        ):
             if reg_name and reg_pin:
                 success = register_user(
                     reg_name, reg_pin, gender_val, reg_balance, reg_goal
                 )
                 if success:
-                    greeting_preview = "NDAA!" if gender_val == "Male" else "AH!"
+                    greeting_preview = "NDAA!" if gender_val == "Male" else "AA!"
                     st.success(
-                        f"Account created successfully for {reg_name}! Mufamadi AI will greet you with '{greeting_preview}'. Please log in under the Login tab."
+                        f"✅ Welcome {reg_name}! Your account has been registered. "
+                        f"Mufamadi AI will greet you with '{greeting_preview}'. Please switch to the Sign In tab to log in."
                     )
                 else:
-                    st.warning("Member name already exists. Please log in.")
+                    st.warning(
+                        "⚠️ Member name already exists. Please log in under the Sign In tab."
+                    )
             else:
-                st.warning("Please fill in both your name and security PIN.")
+                st.warning("⚠️ Please provide both a Full Name and PIN.")
 
 # ==========================================
 # 6. MAIN MEMBER DASHBOARD (POST-LOGIN)
@@ -289,8 +348,8 @@ else:
         if savings_goal is None:
             savings_goal = 10000.0
 
-        # Dynamic Greeting based on Gender
-        greeting = "NDAA!!!" if gender == "Male" else "AH!!!"
+        # Traditional Greeting Assignment
+        greeting = "NDAA!!!" if gender == "Male" else "AA!!!"
 
         # Header & Log Out
         col_head1, col_head2 = st.columns([3, 1])
