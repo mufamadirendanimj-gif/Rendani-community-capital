@@ -10,7 +10,7 @@ st.set_page_config(
     page_title="Rendani Community Capital", page_icon="🏛️", layout="centered"
 )
 
-# Custom CSS to eliminate white elements and style the header
+# Custom CSS to eliminate white elements and style side-by-side gender cards
 st.markdown(
     """
     <style>
@@ -85,14 +85,44 @@ st.markdown(
         box-shadow: 0 2px 6px rgba(0,0,0,0.4);
     }
 
-    /* Gender Selection Blue Cards */
-    .gender-card-male, .gender-card-female {
+    /* Side-by-Side Gender Cards matching mockup drawing */
+    .gender-card {
         background-color: #1D5BB2;
-        border-radius: 16px;
-        padding: 15px;
+        border-radius: 18px;
+        padding: 18px 10px;
         text-align: center;
         border: 2px solid #2B6FC9;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 140px;
+    }
+
+    /* SVG Icon Styling inside gender cards */
+    .gender-svg {
+        width: 48px;
+        height: 64px;
+        fill: #1A1A1A;
+        margin-bottom: 8px;
+    }
+
+    .gender-label {
+        font-weight: 800;
+        font-size: 14px;
+        letter-spacing: 1px;
+        color: #112A50;
+        margin: 0;
+    }
+
+    /* Radio button custom theme for gender selection below cards */
+    div[data-testid="stRadio"] > label {
+        display: none !important;
+    }
+    div[data-testid="stRadio"] div[role="radiogroup"] {
+        justify-content: center;
+        gap: 20px;
     }
 
     /* Action Button (SIGN UP / LOG IN) matching capsule design */
@@ -116,7 +146,7 @@ st.markdown(
         background-color: #163B88 !important;
     }
 
-    /* Labels & Switch Links */
+    /* Labels & Links */
     label, p, span {
         color: #FFFFFF !important;
     }
@@ -355,33 +385,54 @@ if not st.session_state["logged_in"]:
             unsafe_allow_html=True,
         )
 
-        # Gender Selection Cards with Silhouette Icons
+        # Side-by-Side Drawing Cards for Male and Female
         gender_col1, gender_col2 = st.columns(2)
+
         with gender_col1:
             st.markdown(
                 """
-                <div class="gender-card-male">
-                    <p style="font-size:32px; margin:0;">🧔</p>
-                    <p style="font-weight:bold; margin:0; font-size:13px;">MALE (NDAA!)</p>
+                <div class="gender-card">
+                    <svg class="gender-svg" viewBox="0 0 24 24">
+                        <!-- Head -->
+                        <circle cx="12" cy="5" r="3"/>
+                        <!-- Body with cultural patterned loincloth / shorts -->
+                        <path d="M9 9h6v6H9z"/>
+                        <!-- Legs -->
+                        <path d="M10 15v7M14 15v7" stroke="#1A1A1A" stroke-width="2"/>
+                    </svg>
+                    <p class="gender-label">MALE</p>
                 </div>
             """,
                 unsafe_allow_html=True,
             )
-            male_selected = st.checkbox("Select Male", value=True)
 
         with gender_col2:
             st.markdown(
                 """
-                <div class="gender-card-female">
-                    <p style="font-size:32px; margin:0;">👩</p>
-                    <p style="font-weight:bold; margin:0; font-size:13px;">FEMALE (AA!)</p>
+                <div class="gender-card">
+                    <svg class="gender-svg" viewBox="0 0 24 24">
+                        <!-- Head with traditional headpiece circle -->
+                        <circle cx="12" cy="4" r="2.5"/>
+                        <circle cx="12" cy="1.5" r="1.2" fill="#1A1A1A"/>
+                        <!-- Body with traditional flared skirt -->
+                        <path d="M12 7 L7 17 L17 17 Z"/>
+                        <!-- Legs -->
+                        <path d="M10.5 17v5M13.5 17v5" stroke="#1A1A1A" stroke-width="2"/>
+                    </svg>
+                    <p class="gender-label">FEMALE</p>
                 </div>
             """,
                 unsafe_allow_html=True,
             )
-            female_selected = st.checkbox("Select Female", value=False)
 
-        gender_val = "Male" if male_selected else "Female"
+        # Gender selection radio aligned below cards
+        selected_gender_choice = st.radio(
+            "Choose Gender:",
+            ["MALE (NDAA!)", "FEMALE (AA!)"],
+            horizontal=True,
+            key="gender_radio_select",
+        )
+        gender_val = "Male" if "MALE" in selected_gender_choice else "Female"
 
         reg_balance = st.number_input(
             "Initial Stokvel Deposit (R):", min_value=0.0, value=1000.0
@@ -407,7 +458,7 @@ if not st.session_state["logged_in"]:
                 st.warning("⚠️ Please fill in both Username and Password.")
 
         st.markdown(
-            '<p class="switch-link">Already have an account? <b>Log In</b> above.</p>',
+            '<p class="switch-link">Already have an account? Switch to <b>LOG IN</b> tab above.</p>',
             unsafe_allow_html=True,
         )
 
