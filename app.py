@@ -8,6 +8,19 @@ import streamlit as st
 st.set_page_config(
     page_title="Rendani Community Capital", page_icon="🏛️", layout="centered"
 )
+# Hide WebIntoApp floating badges / buttons
+st.markdown(
+    """
+    <style>
+    /* Hides floating WebIntoApp elements */
+    iframe[src*="webintoapp"], div[class*="webintoapp"], .floating-badge, #webintoapp-badge {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    </style>
+""",
+    unsafe_allow_html=True,
+)
 
 # Display Custom R.C.C. Logo if present in the folder
 if os.path.exists("logo.png"):
