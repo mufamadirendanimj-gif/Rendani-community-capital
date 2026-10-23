@@ -1,595 +1,728 @@
-import os
-import sqlite3
-import time
 import streamlit as st
+import sqlite3
+import pandas as pd
+import datetime
+import random
+import json
+import io
 
-# ==========================================
-# 1. PAGE CONFIGURATION & BACKGROUND OVERRIDES
-# ==========================================
+# ==============================================================================
+# 1. PAGE CONFIGURATION & VENDA STYLING (Deep Navy, Gold, Emerald Green)
+# ==============================================================================
 st.set_page_config(
-    page_title="Rendani Community Capital", page_icon="🏛️", layout="centered"
+    page_title="Rendani Community Capital (R.C.C)",
+    page_icon="🏦",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Custom CSS to eliminate white elements and style side-by-side gender cards
-st.markdown(
-    """
-    <style>
-    /* Hide Streamlit UI elements & badges */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    .viewerBadge_container__1QSob, .styles_viewerBadge__1yB5_, 
-    [data-testid="stDecoration"], [data-testid="stStatusWidget"],
-    .floating-badge, #webintoapp-badge, iframe[src*="webintoapp"] {
-        display: none !important;
-        visibility: hidden !important;
+# Custom CSS for Venda Cultural Motifs & Mobile Styling
+st.markdown("""
+<style>
+    /* Theme Colors */
+    :root {
+        --deep-navy: #0B132B;
+        --venda-gold: #D4AF37;
+        --emerald-green: #097969;
+        --light-bg: #F8F9FA;
+        --card-bg: #FFFFFF;
     }
 
-    /* Force entire app and view containers to Royal Blue */
-    .stApp, .stAppViewContainer, .main, [data-testid="stAppViewContainer"], [data-testid="stVerticalBlock"] {
-        background-color: #003B82 !important;
-        color: #FFFFFF !important;
+    /* Main Container Customization */
+    .stApp {
+        background-color: #F4F6F9;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    [data-testid="stHorizontalBlock"], [data-testid="column"] {
-        background-color: transparent !important;
+    /* Header Banner */
+    .venda-header {
+        background: linear-gradient(135deg, #0B132B 0%, #1C2541 60%, #097969 100%);
+        border-bottom: 5px solid #D4AF37;
+        color: white;
+        padding: 24px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
     }
 
-    /* Bold White Top Header */
-    .rcc-header {
-        text-align: center;
-        color: #FFFFFF;
-        font-weight: 900;
-        font-size: 32px;
-        letter-spacing: 3px;
-        margin-top: 5px;
-        margin-bottom: 10px;
-    }
-
-    /* White bold main heading */
-    .signup-title {
-        text-align: center;
-        color: #FFFFFF;
+    .venda-header h1 {
+        color: #D4AF37 !important;
         font-weight: 800;
-        font-size: 24px;
-        letter-spacing: 1.5px;
-        margin-bottom: 20px;
-        margin-top: 10px;
-        text-transform: uppercase;
-    }
-
-    /* Clean white rounded input fields */
-    .stTextInput input {
-        background-color: #FFFFFF !important;
-        color: #333333 !important;
-        border-radius: 12px !important;
-        padding: 14px 16px !important;
-        border: none !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
-        font-size: 15px !important;
-    }
-
-    /* Traditional Multi-Colored Venda Stripe Bar */
-    .cultural-divider {
-        height: 24px;
-        background: repeating-linear-gradient(
-            90deg,
-            #000000, #000000 6px,
-            #8B0000 6px, #8B0000 12px,
-            #D4AF37 12px, #D4AF37 18px,
-            #008000 18px, #008000 24px,
-            #003B82 24px, #003B82 30px
-        );
-        border-radius: 4px;
-        margin: 25px 0;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-    }
-
-    /* Side-by-Side Gender Cards matching mockup drawing */
-    .gender-card {
-        background-color: #1D5BB2;
-        border-radius: 18px;
-        padding: 18px 10px;
-        text-align: center;
-        border: 2px solid #2B6FC9;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 140px;
-    }
-
-    /* SVG Icon Styling inside gender cards */
-    .gender-svg {
-        width: 48px;
-        height: 64px;
-        fill: #FFFFFF;
-        margin-bottom: 8px;
-    }
-
-    .gender-label {
-        font-weight: 800;
-        font-size: 14px;
-        letter-spacing: 1px;
-        color: #FFFFFF;
         margin: 0;
+        font-size: 2.2rem;
+        letter-spacing: 0.5px;
     }
 
-    /* Radio button custom theme for gender selection below cards */
-    div[data-testid="stRadio"] > label {
-        display: none !important;
-    }
-    div[data-testid="stRadio"] div[role="radiogroup"] {
-        justify-content: center;
-        gap: 20px;
+    .venda-header p {
+        color: #E0E6ED;
+        margin-top: 5px;
+        font-size: 1rem;
     }
 
-    /* Action Button (SIGN UP / LOG IN) matching capsule design */
-    div.stButton > button {
-        background-color: #0F2D6B !important;
-        color: #FFFFFF !important;
-        font-size: 18px !important;
-        font-weight: 800 !important;
-        letter-spacing: 1.5px !important;
-        border-radius: 20px !important;
-        padding: 14px !important;
-        border: none !important;
-        border-left: 10px solid #8B0000 !important;
-        border-right: 10px solid #8B0000 !important;
-        box-shadow: 0 6px 14px rgba(0,0,0,0.4) !important;
-        text-transform: uppercase !important;
-        transition: transform 0.2s ease !important;
-    }
-    div.stButton > button:hover {
-        transform: scale(1.02) !important;
-        background-color: #163B88 !important;
+    /* Custom Cards */
+    .metric-card {
+        background-color: white;
+        border-radius: 10px;
+        padding: 18px;
+        border-left: 5px solid #097969;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        margin-bottom: 15px;
     }
 
-    /* Labels & Links */
-    label, p, span {
-        color: #FFFFFF !important;
+    .metric-card.gold {
+        border-left-color: #D4AF37;
     }
-    .switch-link {
-        text-align: center;
-        color: #E0E0E0;
-        font-size: 14px;
-        margin-top: 15px;
+
+    .metric-card.navy {
+        border-left-color: #0B132B;
     }
-    </style>
-""",
-    unsafe_allow_html=True,
-)
+
+    .metric-title {
+        font-size: 0.85rem;
+        color: #6C757D;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .metric-value {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #0B132B;
+        margin-top: 5px;
+    }
+
+    /* WhatsApp Simulator Box */
+    .whatsapp-box {
+        background-color: #E5DDD5;
+        border-radius: 12px;
+        padding: 15px;
+        max-width: 450px;
+        margin: 0 auto;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        font-family: Arial, sans-serif;
+    }
+
+    .whatsapp-bubble {
+        background-color: #DCF8C6;
+        border-radius: 8px;
+        padding: 12px 15px;
+        color: #000;
+        font-size: 0.95rem;
+        position: relative;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    }
+
+    .whatsapp-time {
+        font-size: 0.7rem;
+        color: #777;
+        text-align: right;
+        margin-top: 5px;
+    }
+
+    /* Streamlit UI Overrides */
+    .stButton>button {
+        background: linear-gradient(180deg, #097969 0%, #065449 100%);
+        color: white !important;
+        font-weight: 600;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 16px;
+        transition: all 0.2s ease;
+    }
+
+    .stButton>button:hover {
+        background: linear-gradient(180deg, #D4AF37 0%, #B38F2A 100%);
+        color: #0B132B !important;
+    }
+
+    /* Mobile Responsive Optimizations */
+    @media (max-width: 768px) {
+        .venda-header h1 {
+            font-size: 1.6rem;
+        }
+        .venda-header {
+            padding: 15px;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
 
 
-# ==========================================
-# 2. 2-SECOND SPLASH SCREEN LOGIC
-# ==========================================
-if "splash_shown" not in st.session_state:
-    st.session_state["splash_shown"] = False
+# ==============================================================================
+# 2. DATABASE INITIALIZATION & MANAGEMENT (SQLite)
+# ==============================================================================
+DB_FILE = "rcc_stokvel.db"
 
-if not st.session_state["splash_shown"]:
-    splash_placeholder = st.empty()
-    with splash_placeholder.container():
-        st.markdown("<br><br><br>", unsafe_allow_html=True)
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            if os.path.exists("logo.png"):
-                st.image("logo.png", use_container_width=True)
-            elif os.path.exists("logo.jpg"):
-                st.image("logo.jpg", use_container_width=True)
-            else:
-                st.markdown(
-                    "<h1 style='text-align: center; color: #FFFFFF;'>🏛️<br>R.C.C.</h1>",
-                    unsafe_allow_html=True,
-                )
-            st.markdown(
-                "<p style='text-align: center; color: #D4AF37; font-weight: bold;'>Powered by Mufamadi AI</p>",
-                unsafe_allow_html=True,
-            )
+def get_db_connection():
+    """Establish connection to SQLite DB."""
+    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-    time.sleep(2)
-    st.session_state["splash_shown"] = True
-    splash_placeholder.empty()
-    st.rerun()
-
-
-# ==========================================
-# 3. SAFE DATABASE SETUP & AUTO-RESET
-# ==========================================
-def init_db():
-    conn = sqlite3.connect("rendani.db")
+def init_sqlite_db():
+    """Create initial schema and insert seed data if empty."""
+    conn = get_db_connection()
     cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS members (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE,
-                pin TEXT DEFAULT '1234',
-                gender TEXT DEFAULT 'Male',
-                stokvel_balance REAL,
-                loan_status TEXT,
-                savings_goal REAL DEFAULT 10000.0
-            )
-        """)
-        conn.commit()
-    except Exception:
-        # If schema conflicts with old table, safely recreate it
-        cursor.execute("DROP TABLE IF EXISTS members")
-        cursor.execute("""
-            CREATE TABLE members (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE,
-                pin TEXT DEFAULT '1234',
-                gender TEXT DEFAULT 'Male',
-                stokvel_balance REAL,
-                loan_status TEXT,
-                savings_goal REAL DEFAULT 10000.0
-            )
-        """)
-        conn.commit()
 
-    cursor.execute("SELECT COUNT(*) FROM members")
-    if cursor.fetchone()[0] == 0:
-        cursor.execute("""
-            INSERT INTO members (name, pin, gender, stokvel_balance, loan_status, savings_goal)
-            VALUES ('Vho-Makhadzi', '1234', 'Female', 5400.0, 'Approved for R2,000 Micro-loan', 10000.0)
-        """)
-        cursor.execute("""
-            INSERT INTO members (name, pin, gender, stokvel_balance, loan_status, savings_goal)
-            VALUES ('Ndivhuwo M.', '1234', 'Male', 12000.0, 'Approved for R5,000 Business Loan', 15000.0)
-        """)
-        conn.commit()
-    conn.close()
-
-
-init_db()
-
-
-def authenticate_user(name, pin):
-    conn = sqlite3.connect("rendani.db")
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT stokvel_balance, loan_status, savings_goal, gender FROM members WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND pin = ?",
-        (name, pin),
-    )
-    user = cursor.fetchone()
-    conn.close()
-    return user
-
-
-def register_user(name, pin, gender, balance, goal):
-    try:
-        conn = sqlite3.connect("rendani.db")
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO members (name, pin, gender, stokvel_balance, loan_status, savings_goal)
-            VALUES (?, ?, ?, ?, 'Eligible for Micro-loan', ?)
-        """,
-            (name.strip(), pin.strip(), gender, balance, goal),
+    # Users Table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            full_name TEXT NOT NULL,
+            phone TEXT UNIQUE NOT NULL,
+            role TEXT DEFAULT 'Member',
+            balance REAL DEFAULT 0.0,
+            preferred_language TEXT DEFAULT 'English'
         )
-        conn.commit()
-        conn.close()
-        return True
-    except sqlite3.IntegrityError:
-        return False
+    """)
 
+    # Groups Table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS groups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_name TEXT NOT NULL,
+            monthly_contribution REAL DEFAULT 500.0,
+            pool_balance REAL DEFAULT 0.0,
+            treasurer_id INTEGER,
+            FOREIGN KEY (treasurer_id) REFERENCES users (id)
+        )
+    """)
 
-def update_savings_goal(name, new_goal):
-    conn = sqlite3.connect("rendani.db")
-    cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE members SET savings_goal = ? WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))",
-        (new_goal, name),
-    )
+    # Transactions Table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            group_id INTEGER,
+            amount REAL NOT NULL,
+            transaction_type TEXT NOT NULL, -- Contribution, Withdrawal, Loan Repayment, Fee
+            status TEXT DEFAULT 'Completed',
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            reference TEXT,
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (group_id) REFERENCES groups (id)
+        )
+    """)
+
+    # Loans Table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS loans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            amount REAL NOT NULL,
+            interest_rate REAL DEFAULT 0.05,
+            status TEXT DEFAULT 'Active', -- Pending, Active, Paid
+            issued_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    """)
+
+    # Pending Multi-Sig Approvals Table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS pending_approvals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_id INTEGER,
+            requested_by INTEGER,
+            amount REAL NOT NULL,
+            recipient_info TEXT NOT NULL,
+            signatures_required INTEGER DEFAULT 2,
+            signatures_count INTEGER DEFAULT 1,
+            signed_by_json TEXT DEFAULT '[]', -- JSON list of user IDs who signed
+            status TEXT DEFAULT 'Pending', -- Pending, Approved, Rejected
+            request_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (group_id) REFERENCES groups (id),
+            FOREIGN KEY (requested_by) REFERENCES users (id)
+        )
+    """)
+
+    # Seed initial data if tables are empty
+    cursor.execute("SELECT COUNT(*) FROM users")
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany("""
+            INSERT INTO users (full_name, phone, role, balance, preferred_language)
+            VALUES (?, ?, ?, ?, ?)
+        """, [
+            ("Rendani Mufamadi", "+27821234567", "Treasurer", 12500.00, "Tshivenḓa"),
+            ("Ndivhuho Khorommbi", "+27839876543", "Member", 4500.00, "Tshivenḓa"),
+            ("Thabo Mokoena", "+27715551234", "Member", 3200.00, "Sepedi"),
+            ("Lindiwe Chauke", "+27840001122", "Auditor", 8900.00, "Xitsonga"),
+            ("Sipho Mabena", "+27723334455", "Member", 1500.00, "English")
+        ])
+
+        cursor.execute("""
+            INSERT INTO groups (group_name, monthly_contribution, pool_balance, treasurer_id)
+            VALUES ('Thohoyandou Unity Stokvel', 1000.00, 85000.00, 1)
+        """)
+
+        cursor.executemany("""
+            INSERT INTO transactions (user_id, group_id, amount, transaction_type, status, reference)
+            VALUES (?, 1, ?, ?, 'Completed', ?)
+        """, [
+            (1, 1000.00, 'Contribution', 'REF-CONT-101'),
+            (2, 1000.00, 'Contribution', 'REF-CONT-102'),
+            (3, 1000.00, 'Contribution', 'REF-CONT-103'),
+            (4, 1000.00, 'Contribution', 'REF-CONT-104'),
+            (1, 5000.00, 'Loan Repayment', 'REF-LOAN-001')
+        ])
+
+        cursor.execute("""
+            INSERT INTO pending_approvals (group_id, requested_by, amount, recipient_info, signatures_required, signatures_count, signed_by_json)
+            VALUES (1, 1, 15000.00, 'Payout to Ndivhuho (Rotational Distribution)', 3, 1, '[1]')
+        """)
+
     conn.commit()
     conn.close()
 
-
-# ==========================================
-# 4. MUFAMADI AI BRAIN
-# ==========================================
-def mufamadi_ai_response(
-    user_text, member_name, greeting, balance, loan_status
-):
-    query = user_text.lower()
-    balance_keywords = [
-        "stokvel",
-        "balance",
-        "tshelede",
-        "vhugala",
-        "mali",
-        "gontshi",
-        "muṅwaloni",
-        "chelete",
-        "savings",
-    ]
-    loan_keywords = [
-        "loan",
-        "credit",
-        "loni",
-        "chikolodo",
-        "chikolo",
-        "mubhadhalo",
-        "borrow",
-        "kolodo",
-    ]
-
-    if any(word in query for word in balance_keywords):
-        return (
-            f"🤖 **Mufamadi AI:** {greeting} {member_name}! Your total Stokvel savings balance is **R{balance:,.2f}**.\n\n"
-            f"*(Tshivenḓa: Mugaganyo wau wa tshitaka u na R{balance:,.2f} zwa zwino.)*"
-        )
-    elif any(word in query for word in loan_keywords):
-        return (
-            f"🤖 **Mufamadi AI:** Hello {member_name}! Your alternative credit status: **{loan_status}**.\n\n"
-            f"*(Tshivenḓa: Mufamadi AI credit score yau i sumbedza uri status yau ndi: {loan_status}.)*"
-        )
-    else:
-        return (
-            f"🤖 **Mufamadi AI:** {greeting}! I am analyzing your request. "
-            f"You can ask me about your **stokvel balance**, **loan eligibility**, or **savings status** in Tshivenḓa, Sepedi, or English!"
-        )
+# Run initialization
+init_sqlite_db()
 
 
-# ==========================================
-# 5. SESSION STATE AUTHENTICATION CONTROL
-# ==========================================
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
-if "user_name" not in st.session_state:
-    st.session_state["user_name"] = ""
-
-
-# ==========================================
-# 6. SIGN-UP & LOGIN SCREEN
-# ==========================================
-if not st.session_state["logged_in"]:
-
-    # BOLD WHITE R.C.C. TOP HEADER
-    st.markdown('<div class="rcc-header">R.C.C.</div>', unsafe_allow_html=True)
-
-    tab1, tab2 = st.tabs(["CREATE ACCOUNT", "LOG IN"])
-
-    # CREATE ACCOUNT TAB
-    with tab1:
-        st.markdown(
-            '<div class="signup-title">CREATE YOUR<br>ACCOUNT</div>',
-            unsafe_allow_html=True,
-        )
-
-        reg_name = st.text_input(
-            "Username / Email",
-            placeholder="Username / Email",
-            key="reg_name_input",
-            label_visibility="collapsed",
-        )
-        reg_pin = st.text_input(
-            "Password",
-            type="password",
-            placeholder="Password",
-            key="reg_pin_input",
-            label_visibility="collapsed",
-        )
-
-        # Colorful Venda Striped Pattern
-        st.markdown(
-            '<div class="cultural-divider"></div>', unsafe_allow_html=True
-        )
-
-        st.markdown(
-            '<p style="text-align: center; font-weight: 800; font-size: 14px; letter-spacing: 1px; color: #FFFFFF;">SELECT GENDER</p>',
-            unsafe_allow_html=True,
-        )
-
-        # Side-by-Side Drawing Cards for Male and Female
-        gender_col1, gender_col2 = st.columns(2)
-
-        with gender_col1:
-            st.markdown(
-                """
-                <div class="gender-card">
-                    <svg class="gender-svg" viewBox="0 0 24 24">
-                        <circle cx="12" cy="5" r="3"/>
-                        <path d="M9 9h6v6H9z"/>
-                        <path d="M10 15v7M14 15v7" stroke="#FFFFFF" stroke-width="2"/>
-                    </svg>
-                    <p class="gender-label">MALE</p>
-                </div>
-            """,
-                unsafe_allow_html=True,
-            )
-
-        with gender_col2:
-            st.markdown(
-                """
-                <div class="gender-card">
-                    <svg class="gender-svg" viewBox="0 0 24 24">
-                        <circle cx="12" cy="4" r="2.5"/>
-                        <circle cx="12" cy="1.5" r="1.2" fill="#FFFFFF"/>
-                        <path d="M12 7 L7 17 L17 17 Z"/>
-                        <path d="M10.5 17v5M13.5 17v5" stroke="#FFFFFF" stroke-width="2"/>
-                    </svg>
-                    <p class="gender-label">FEMALE</p>
-                </div>
-            """,
-                unsafe_allow_html=True,
-            )
-
-        selected_gender_choice = st.radio(
-            "Choose Gender:",
-            ["MALE (NDAA!)", "FEMALE (AA!)"],
-            horizontal=True,
-            key="gender_radio_select",
-        )
-        gender_val = "Male" if "MALE" in selected_gender_choice else "Female"
-
-        reg_balance = st.number_input(
-            "Initial Stokvel Deposit (R):", min_value=0.0, value=1000.0
-        )
-        reg_goal = st.number_input(
-            "Target Savings Goal (R):", min_value=500.0, value=10000.0
-        )
-
-        st.write("")
-        if st.button("SIGN UP", use_container_width=True):
-            if reg_name and reg_pin:
-                success = register_user(
-                    reg_name, reg_pin, gender_val, reg_balance, reg_goal
-                )
-                if success:
-                    greeting_preview = "NDAA!" if gender_val == "Male" else "AA!"
-                    st.success(
-                        f"✅ Account created successfully for {reg_name}! Mufamadi AI will greet you with '{greeting_preview}'. Switch to LOG IN tab above."
-                    )
-                else:
-                    st.warning("⚠️ Member name already exists. Please Log In.")
-            else:
-                st.warning("⚠️ Please fill in both Username and Password.")
-
-        st.markdown(
-            '<p class="switch-link">Already have an account? Switch to <b>LOG IN</b> tab above.</p>',
-            unsafe_allow_html=True,
-        )
-
-    # LOG IN TAB
-    with tab2:
-        st.markdown(
-            '<div class="signup-title">LOG IN TO YOUR<br>ACCOUNT</div>',
-            unsafe_allow_html=True,
-        )
-
-        login_name = st.text_input(
-            "Username / Email",
-            placeholder="Username / Email",
-            key="login_name_input",
-            label_visibility="collapsed",
-        )
-        login_pin = st.text_input(
-            "Password",
-            type="password",
-            placeholder="Password",
-            key="login_pin_input",
-            label_visibility="collapsed",
-        )
-
-        st.markdown(
-            '<div class="cultural-divider"></div>', unsafe_allow_html=True
-        )
-
-        if st.button("LOG IN", use_container_width=True):
-            user_data = authenticate_user(login_name, login_pin)
-            if user_data:
-                st.session_state["logged_in"] = True
-                st.session_state["user_name"] = login_name.strip()
-                st.rerun()
-            else:
-                st.error("❌ Invalid Username or Password. Please try again.")
-
-
-# ==========================================
-# 7. MAIN MEMBER DASHBOARD (POST-LOGIN)
-# ==========================================
-else:
-    member_name = st.session_state["user_name"]
-
-    # Fetch User Data from DB
-    conn = sqlite3.connect("rendani.db")
+# ==============================================================================
+# 3. HELPER FUNCTIONS
+# ==============================================================================
+def log_transaction(user_id, group_id, amount, t_type, reference="AUTO-GEN"):
+    """Helper to safely record transactions into SQLite."""
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT stokvel_balance, loan_status, savings_goal, gender FROM members WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))",
-        (member_name,),
-    )
-    user_data = cursor.fetchone()
+
+    if reference == "AUTO-GEN":
+        reference = f"REF-{random.randint(100000, 999999)}"
+
+    cursor.execute("""
+        INSERT INTO transactions (user_id, group_id, amount, transaction_type, status, reference)
+        VALUES (?, ?, ?, ?, 'Completed', ?)
+    """, (user_id, group_id, amount, t_type, reference))
+
+    # Update group pool balance if contribution or payout
+    if t_type == "Contribution":
+        cursor.execute("UPDATE groups SET pool_balance = pool_balance + ? WHERE id = ?", (amount, group_id))
+        cursor.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (amount, user_id))
+    elif t_type == "Withdrawal":
+        cursor.execute("UPDATE groups SET pool_balance = pool_balance - ? WHERE id = ?", (amount, group_id))
+
+    conn.commit()
     conn.close()
 
-    if user_data:
-        stokvel_bal, loan_stat, savings_goal, gender = user_data
-        if savings_goal is None:
-            savings_goal = 10000.0
+def get_mufamadi_response(prompt, language):
+    """Multi-lingual rules engine for Mufamadi AI Assistant."""
+    prompt_lower = prompt.lower()
 
-        greeting = "NDAA!!!" if gender == "Male" else "AA!!!"
+    responses = {
+        "Tshivenḓa": {
+            "balance": "Mugagano wavho wa zwino u kha R.C.C ndi : balance_placeholder. Ndaa!",
+            "deposit": "U itela u vhea tshelede, shumisani R.C.C Pay/EFT u ya kha akhawunthi ya tshitshavha nga tsumbo ya reference yanu.",
+            "withdrawal": "U bvisa tshelede zwi ṱoḓa thempelo ya vhavhusi vhavhili kha vhararu (2-of-3 Multi-Sig).",
+            "greeting": "Ndaa/Aa! Nne ndi Mufamadi AI, muthusi wavho wa zwa masheleni a R.C.C Stokvel. Ndi nga vha fhasi hani ṱhoho?",
+            "default": "Ndo livhuwa mbudziso yanu. Kha vha ṱole zva zwiimela zva masheleni kana vha ambe na mulanguli wa Stokvel."
+        },
+        "Sepedi": {
+            "balance": "Tekanyo ya gago ya bjale go R.C.C ke : balance_placeholder. Re a leboga!",
+            "deposit": "Go pea tšhelete, šomiša R.C.C Pay/EFT go akhaonto ya Stokvel o šomiše poledišo ya gago.",
+            "withdrawal": "Go ntšha tšhelete go nyaka amogelo go tšwa go bahlankedi ba babedi go ba bararo (2-of-3 Multi-Sig).",
+            "greeting": "Thobela! Nna ke Mufamadi AI, mothusi wa gago wa matlotlo wa R.C.C Stokvel. Nka go thuša ka eng?",
+            "default": "Ke lebogela potšišo ya gago. Hle lekola lenaneo la gago kapa o ikgolaganye le molaodi."
+        },
+        "Xitsonga": {
+            "balance": "Xiyimo xa akhawunte ya n’wina eka R.C.C i : balance_placeholder. Inkomu!",
+            "deposit": "Kona ku hoxa mali, tirhisani R.C.C Pay/EFT eka akhawunte ya Stokvel hi ku tirhisa kombo ra n'wina.",
+            "withdrawal": "Ku humesa mali swi lava mpfumelelo wa vawundli vambirhi eka vanharhu (2-of-3 Multi-Sig).",
+            "greeting": "Avuxeni/Ahee! Hi mina Mufamadi AI, mupfuni wa n'wina wa swa timali eka R.C.C Stokvel. Ndzi nga mi pfuna yini?",
+            "default": "Inkomu hi xivutiso xa n'wina. Hi kombela mi langutisa swiyimo swa n'wina swa timali kumbe mi tihlanganisa na mufambisi."
+        },
+        "English": {
+            "balance": "Your current ledger balance with R.C.C Stokvel is: balance_placeholder. Thank you!",
+            "deposit": "To make a deposit, perform an Instant EFT to the group bank account using your unique phone number as reference.",
+            "withdrawal": "Withdrawals require multi-signature authentication (2-of-3 consensus) from group executive members.",
+            "greeting": "Hello! I am Mufamadi AI, your dedicated financial assistant for R.C.C Stokvel. How may I assist you today?",
+            "default": "Thank you for reaching out. Please check your dashboard or consult your group treasurer for detailed reports."
+        }
+    }
 
-        # Header & Log Out
-        col_head1, col_head2 = st.columns([3, 1])
-        with col_head1:
-            st.markdown(f"### 🖐️ {greeting} {member_name}!")
-        with col_head2:
-            if st.button("🚪 Log Out"):
-                st.session_state["logged_in"] = False
-                st.session_state["user_name"] = ""
-                st.session_state["splash_shown"] = True
-                st.rerun()
+    lang_dict = responses.get(language, responses["English"])
 
-        # Quick Action Buttons
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("💰 Check Stokvel Balance", use_container_width=True):
-                st.success(
-                    f"Mufamadi AI: {greeting} Your current balance is R{stokvel_bal:,.2f}"
-                )
+    if any(w in prompt_lower for w in ["hi", "hello", "ndaa", "aa", "thobela", "avuxeni"]):
+        return lang_dict["greeting"]
+    elif any(w in prompt_lower for w in ["balance", "tshelede", "mali", "tšhelete", "how much"]):
+        return lang_dict["balance"]
+    elif any(w in prompt_lower for w in ["deposit", "contribute", "pay", "vhea", "hoxa", "pea"]):
+        return lang_dict["deposit"]
+    elif any(w in prompt_lower for w in ["withdraw", "bvisa", "ntšha", "humesa", "payout"]):
+        return lang_dict["withdrawal"]
+    else:
+        return lang_dict["default"]
 
-        with col2:
-            if st.button("💳 Check Credit & Loans", use_container_width=True):
-                st.info(f"Mufamadi AI: Credit Status — {loan_stat}")
 
-        st.divider()
+# ==============================================================================
+# 4. APPLICATION UI LAYOUT & SIDEBAR NAVIGATION
+# ==============================================================================
 
-        # 🎯 STOKVEL SAVINGS GOAL TRACKER
-        st.markdown("### 🎯 Stokvel Savings Goal Tracker")
-        progress = (
-            min(stokvel_bal / savings_goal, 1.0) if savings_goal > 0 else 0
-        )
-        st.write(
-            f"**Target Goal:** R{savings_goal:,.2f} | **Current Balance:** R{stokvel_bal:,.2f}"
-        )
-        st.progress(progress)
-        st.write(f"📊 **Progress:** {progress * 100:.1f}% of goal reached.")
+# Header Section
+st.markdown("""
+    <div class="venda-header">
+        <h1>Rendani Community Capital (R.C.C)</h1>
+        <p>🔒 Secure Stokvel Management System • Multi-Sig Governance • Mufamadi AI Engine</p>
+    </div>
+""", unsafe_allow_html=True)
 
-        with st.expander("⚙️ Adjust Target Savings Goal"):
-            new_goal_val = st.number_input(
-                "Set New Target Goal Amount (R):",
-                value=float(savings_goal),
-                step=500.0,
-            )
-            if st.button("Update Goal"):
-                update_savings_goal(member_name, new_goal_val)
-                st.success("Target savings goal updated successfully!")
-                st.rerun()
+# User Session Context
+conn = get_db_connection()
+users_df = pd.read_sql_query("SELECT id, full_name, role FROM users", conn)
+groups_df = pd.read_sql_query("SELECT id, group_name FROM groups", conn)
+conn.close()
 
-        # Monthly Contribution Calculator
-        st.markdown("#### 🧮 Group Monthly Contribution Calculator")
-        months = st.slider(
-            "Number of months to reach remaining target:",
-            min_value=1,
-            max_value=24,
-            value=6,
-        )
-        remaining_balance = max(savings_goal - stokvel_bal, 0)
-        monthly_payment = remaining_balance / months if months > 0 else 0
+st.sidebar.image("https://img.icons8.com/color/96/000000/shield-with-sign-top-right.png", width=64)
+st.sidebar.title("R.C.C Navigation")
 
-        st.info(
-            f"💡 **Mufamadi AI Calculation:** To reach your remaining goal of **R{remaining_balance:,.2f}** in {months} months, "
-            f"you need to contribute **R{monthly_payment:,.2f} / month**."
-        )
+# Active User Selection
+selected_user_id = st.sidebar.selectbox(
+    "👤 Select Active User",
+    options=users_df["id"].tolist(),
+    format_func=lambda x: f"{users_df[users_df['id'] == x]['full_name'].values[0]} ({users_df[users_df['id'] == x]['role'].values[0]})"
+)
 
-        st.divider()
+# Navigation Menu
+nav_choice = st.sidebar.radio(
+    "Go to Module:",
+    [
+        "📊 Overview & Dashboard",
+        "👥 Member Portal & Receipts",
+        "🔑 Treasurer Multi-Sig Hub",
+        "🤖 Mufamadi AI Assistant",
+        "📈 Financial Growth Simulator",
+        "📜 Transaction Audit Log"
+    ]
+)
 
-        # 🤖 MUFAMADI AI CHATBOX
-        st.markdown("### 🎙️ Talk to Mufamadi AI Assistant")
-        st.write(
-            "Ask any financial question in **Tshivenḓa**, **Sepedi**, **Xitsonga**, or **English**:"
-        )
+st.sidebar.markdown("---")
+st.sidebar.info("💡 **Tip:** Fully optimized for mobile screens and Android WebView/PWA wrappers.")
 
-        user_query = st.text_input(
-            "Type or tap mic on your keyboard to speak:",
-            placeholder="e.g., Ndi na gontshi muṅwaloni wanga?",
-        )
 
-        if user_query:
-            st.markdown(f"**You asked:** *\"{user_query}\"*")
-            response = mufamadi_ai_response(
-                user_query, member_name, greeting, stokvel_bal, loan_stat
-            )
-            st.success(response)
+# ==============================================================================
+# MODULE 1: OVERVIEW & DASHBOARD
+# ==============================================================================
+if nav_choice == "📊 Overview & Dashboard":
+    st.subheader("🏛️ High-Level Financial Overview")
+
+    conn = get_db_connection()
+    total_savings = conn.execute("SELECT SUM(balance) FROM users").fetchone()[0] or 0.0
+    group_pool = conn.execute("SELECT SUM(pool_balance) FROM groups").fetchone()[0] or 0.0
+    total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    pending_withdrawals = conn.execute("SELECT COUNT(*) FROM pending_approvals WHERE status='Pending'").fetchone()[0]
+    conn.close()
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(f"""
+            <div class="metric-card gold">
+                <div class="metric-title">Total Pool Savings</div>
+                <div class="metric-value">R {group_pool:,.2f}</div>
+            </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+            <div class="metric-card navy">
+                <div class="metric-title">Individual Balances</div>
+                <div class="metric-value">R {total_savings:,.2f}</div>
+            </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title">Active Stokvel Members</div>
+                <div class="metric-value">{total_users}</div>
+            </div>
+        """, unsafe_allow_html=True)
+    with col4:
+        st.markdown(f"""
+            <div class="metric-card gold">
+                <div class="metric-title">Pending Multi-Sig Req</div>
+                <div class="metric-value">{pending_withdrawals}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("### 📋 Group Performance & Ledger")
+    conn = get_db_connection()
+    df_users = pd.read_sql_query("SELECT full_name, phone, role, balance, preferred_language FROM users", conn)
+    conn.close()
+
+    st.dataframe(df_users, use_container_width=True)
+
+
+# ==============================================================================
+# MODULE 2: MEMBER PORTAL & INSTANT RECEIPT SIMULATOR
+# ==============================================================================
+elif nav_choice == "👥 Member Portal & Receipts":
+    st.subheader("💳 Member Actions & Digital Receipts")
+
+    conn = get_db_connection()
+    user_data = conn.execute("SELECT * FROM users WHERE id = ?", (selected_user_id,)).fetchone()
+    conn.close()
+
+    col_a, col_b = st.columns([1, 1])
+
+    with col_a:
+        st.markdown(f"### Welcome, **{user_data['full_name']}**")
+        st.write(f"**Role:** `{user_data['role']}` | **Current Balance:** `R {user_data['balance']:,.2f}`")
+
+        st.markdown("#### 📥 Perform Contribution Deposit")
+        deposit_amount = st.number_input("Deposit Amount (ZAR)", min_value=50.0, value=500.0, step=50.0)
+        ref_note = st.text_input("Reference/Note", f"CONT-{user_data['full_name'].split()[0].upper()}")
+
+        if st.button("Submit Instant Deposit"):
+            log_transaction(selected_user_id, 1, deposit_amount, "Contribution", ref_note)
+            st.success(f"Deposit of R {deposit_amount:,.2f} recorded successfully!")
+            st.rerun()
+
+    with col_b:
+        st.markdown("### 📲 Instant WhatsApp / SMS Receipt Simulator")
+        st.caption("Simulated real-time automated message generated for mobile confirmation.")
+
+        conn = get_db_connection()
+        latest_tx = conn.execute("""
+            SELECT * FROM transactions 
+            WHERE user_id = ? 
+            ORDER BY timestamp DESC LIMIT 1
+        """, (selected_user_id,)).fetchone()
+        conn.close()
+
+        if latest_tx:
+            now_str = datetime.datetime.now().strftime("%H:%M")
+            tx_time = latest_tx['timestamp']
+            
+            st.markdown(f"""
+                <div class="whatsapp-box">
+                    <div style="font-weight: bold; color: #075E54; margin-bottom: 8px;">🟢 R.C.C Notification Bot</div>
+                    <div class="whatsapp-bubble">
+                        <b>R.C.C STOKVEL RECEIPT</b><br/>
+                        ----------------------------------<br/>
+                        <b>Member:</b> {user_data['full_name']}<br/>
+                        <b>Type:</b> {latest_tx['transaction_type']}<br/>
+                        <b>Amount:</b> R {latest_tx['amount']:,.2f}<br/>
+                        <b>Ref:</b> {latest_tx['reference']}<br/>
+                        <b>Status:</b> SUCCESSFUL ✅<br/>
+                        <b>Timestamp:</b> {tx_time}<br/>
+                        ----------------------------------<br/>
+                        <i>Ndaa! Thank you for strengthening our community capital.</i>
+                        <div class="whatsapp-time">{now_str} ✓✓</div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.info("No recent transaction history found for receipt preview.")
+
+
+# ==============================================================================
+# MODULE 3: TREASURER MULTI-SIG HUB
+# ==============================================================================
+elif nav_choice == "🔑 Treasurer Multi-Sig Hub":
+    st.subheader("🛡️ Executive Multi-Sig Governance Engine")
+    st.info("🔒 Security Protocol: Large fund distributions require a 2-of-3 or 3-of-3 threshold consensus before funds are unlocked from SQLite records.")
+
+    conn = get_db_connection()
+    pending_df = pd.read_sql_query("""
+        SELECT p.id, p.amount, p.recipient_info, p.signatures_required, p.signatures_count, 
+               p.signed_by_json, p.status, u.full_name as requested_by_name
+        FROM pending_approvals p
+        JOIN users u ON p.requested_by = u.id
+        WHERE p.status = 'Pending'
+    """, conn)
+    conn.close()
+
+    st.markdown("### ⏳ Active Withdrawal Authorization Requests")
+
+    if pending_df.empty:
+        st.success("No pending withdrawal approvals requiring executive signature.")
+    else:
+        for idx, row in pending_df.iterrows():
+            with st.expander(f"REQ-00{row['id']}: Payout R {row['amount']:,.2f} - {row['recipient_info']}", expanded=True):
+                col1, col2 = st.columns([2, 1])
+
+                signed_by = json.loads(row['signed_by_json'])
+                
+                with col1:
+                    st.write(f"**Requested By:** {row['requested_by_name']}")
+                    st.write(f"**Purpose / Recipient:** {row['recipient_info']}")
+                    st.write(f"**Signatures Collected:** `{row['signatures_count']} of {row['signatures_required']}`")
+                    st.progress(row['signatures_count'] / row['signatures_required'])
+
+                with col2:
+                    if selected_user_id in signed_by:
+                        st.warning("⚠️ You have already signed this transaction.")
+                    else:
+                        if st.button(f"✍️ Sign & Approve Request #{row['id']}", key=f"sig_{row['id']}"):
+                            signed_by.append(selected_user_id)
+                            new_count = row['signatures_count'] + 1
+                            new_status = 'Approved' if new_count >= row['signatures_required'] else 'Pending'
+
+                            conn = get_db_connection()
+                            cursor = conn.cursor()
+                            cursor.execute("""
+                                UPDATE pending_approvals 
+                                SET signatures_count = ?, signed_by_json = ?, status = ?
+                                WHERE id = ?
+                            """, (new_count, json.dumps(signed_by), new_status, row['id']))
+
+                            if new_status == 'Approved':
+                                # Deduct from pool balance
+                                cursor.execute("UPDATE groups SET pool_balance = pool_balance - ? WHERE id = 1", (row['amount'],))
+                                cursor.execute("""
+                                    INSERT INTO transactions (user_id, group_id, amount, transaction_type, status, reference)
+                                    VALUES (?, 1, ?, 'Withdrawal', 'Completed', ?)
+                                """, (selected_user_id, row['amount'], f"MULTISIG-APPROVED-{row['id']}"))
+
+                            conn.commit()
+                            conn.close()
+
+                            st.success("Signature appended!")
+                            st.rerun()
+
+    st.markdown("---")
+    st.markdown("### ➕ Initiate New Multi-Sig Withdrawal Request")
+    with st.form("new_multisig_form"):
+        req_amount = st.number_input("Request Amount (ZAR)", min_value=100.0, step=500.0)
+        recipient = st.text_input("Recipient Account Details / Purpose")
+        req_sigs = st.slider("Required Signature Threshold", min_value=2, max_value=3, value=2)
+
+        submit_req = st.form_submit_button("Initiate Request")
+        if submit_req:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO pending_approvals (group_id, requested_by, amount, recipient_info, signatures_required, signatures_count, signed_by_json)
+                VALUES (1, ?, ?, ?, ?, 1, ?)
+            """, (selected_user_id, req_amount, recipient, req_sigs, json.dumps([selected_user_id])))
+            conn.commit()
+            conn.close()
+            st.success("New Multi-Sig transaction successfully broadcasted for approvals!")
+            st.rerun()
+
+
+# ==============================================================================
+# MODULE 4: MULTI-LINGUAL MUFAMADI AI ASSISTANT
+# ==============================================================================
+elif nav_choice == "🤖 Mufamadi AI Assistant":
+    st.subheader("🤖 Mufamadi AI - Intelligent Stokvel Advisor")
+    st.caption("Supporting indigenous South African languages: Tshivenḓa, Sepedi, Xitsonga, and English.")
+
+    # Select Language Mode
+    col_lang, _ = st.columns([1, 2])
+    with col_lang:
+        selected_lang = st.selectbox("🌐 Select AI Assistant Language", ["Tshivenḓa", "Sepedi", "Xitsonga", "English"])
+
+    # Chat Session State Setup
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # Display existing chat history
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # Handle user interaction
+    if prompt := st.chat_input("Ask Mufamadi AI (e.g., 'What is my balance?' or 'Ndi ṱoḓa u bvisa tshelede')"):
+        # User message display
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        # Get AI response
+        conn = get_db_connection()
+        user_bal = conn.execute("SELECT balance FROM users WHERE id = ?", (selected_user_id,)).fetchone()[0]
+        conn.close()
+
+        raw_response = get_mufamadi_response(prompt, selected_lang)
+        final_response = raw_response.replace("balance_placeholder", f"R {user_bal:,.2f}")
+
+        # Assistant response display
+        with st.chat_message("assistant"):
+            st.markdown(final_response)
+        st.session_state.messages.append({"role": "assistant", "content": final_response})
+
+
+# ==============================================================================
+# MODULE 5: FINANCIAL MONETIZATION & GROWTH SIMULATOR
+# ==============================================================================
+elif nav_choice == "📈 Financial Growth Simulator":
+    st.subheader("📊 Financial Monetization & Scalability Engine")
+    st.write("Simulate platform ecosystem revenue growth, SaaS subscription margins, and tax projections across South African Stokvel markets.")
+
+    col_sim_1, col_sim_2 = st.columns([1, 2])
+
+    with col_sim_1:
+        st.markdown("#### ⚙️ Simulation Parameters")
+        user_scale = st.slider("Active Platform Users", min_value=500, max_value=10000, value=2500, step=500)
+        sub_fee = st.number_input("Monthly Platform Fee per User (ZAR)", value=25.0, step=5.0)
+        loan_volume_per_user = st.number_input("Avg Micro-Loan Volume / User / Yr", value=1200.0, step=100.0)
+        loan_interest_margin = st.slider("Platform Micro-Loan Interest Rate (%)", min_value=2.0, max_value=15.0, value=5.0) / 100.0
+        tax_rate = 0.27 # SA Corporate Tax Rate (27%)
+
+    with col_sim_2:
+        # Business Logic calculations
+        annual_sub_revenue = user_scale * sub_fee * 12
+        total_loan_book = user_scale * loan_volume_per_user
+        annual_loan_revenue = total_loan_book * loan_interest_margin
+        gross_revenue = annual_sub_revenue + annual_loan_revenue
+
+        estimated_opex = gross_revenue * 0.35 # 35% operational costs (hosting, banking APIs, SMS)
+        taxable_income = gross_revenue - estimated_opex
+        estimated_tax = taxable_income * tax_rate
+        net_profit = taxable_income - estimated_tax
+
+        st.markdown("#### 📈 Pro-Forma Annual Financial Model")
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Gross Revenue", f"R {gross_revenue:,.2f}")
+        m2.metric("Corporate Tax (27%)", f"R {estimated_tax:,.2f}")
+        m3.metric("Net Profit Margin", f"R {net_profit:,.2f}")
+
+        # Visualization Chart Data
+        months = [f"Month {i}" for i in range(1, 13)]
+        revenue_curve = [(gross_revenue / 12) * (1 + (i * 0.05)) for i in range(12)]
+        profit_curve = [(net_profit / 12) * (1 + (i * 0.05)) for i in range(12)]
+
+        chart_df = pd.DataFrame({
+            "Month": months,
+            "Monthly Gross Revenue": revenue_curve,
+            "Monthly Net Profit": profit_curve
+        }).set_index("Month")
+
+        st.line_chart(chart_df)
+
+    st.markdown("---")
+    st.markdown("#### 💡 Monetization Breakdown Breakdown")
+    col_b1, col_b2 = st.columns(2)
+    with col_b1:
+        st.write(f"- **SaaS Subscription Revenue:** R {annual_sub_revenue:,.2f} / yr")
+        st.write(f"- **Micro-Lending Margin Revenue:** R {annual_loan_revenue:,.2f} / yr")
+    with col_b2:
+        st.write(f"- **Estimated Infrastructure/OPEX:** R {estimated_opex:,.2f} / yr")
+        st.write(f"- **Effective SA Tax Contribution:** R {estimated_tax:,.2f} / yr")
+
+
+# ==============================================================================
+# MODULE 6: TRANSACTION AUDIT LOG
+# ==============================================================================
+elif nav_choice == "📜 Transaction Audit Log":
+    st.subheader("📜 Real-Time SQLite Ledger & Audit Trail")
+
+    conn = get_db_connection()
+    logs_df = pd.read_sql_query("""
+        SELECT t.id, u.full_name as member_name, g.group_name, t.amount, 
+               t.transaction_type, t.status, t.timestamp, t.reference
+        FROM transactions t
+        JOIN users u ON t.user_id = u.id
+        JOIN groups g ON t.group_id = g.id
+        ORDER BY t.timestamp DESC
+    """, conn)
+    conn.close()
+
+    st.dataframe(logs_df, use_container_width=True)
+
+    # Export CSV feature
+    csv_data = logs_df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Export Ledger to CSV (Auditor Format)",
+        data=csv_data,
+        file_name="RCC_Stokvel_Audit_Ledger.csv",
+        mime="text/csv"
+    )
