@@ -65,7 +65,6 @@ def init_db():
         conn.commit()
         conn.close()
     except Exception as e:
-        # If any database error occurs, wipe the corrupted db file and re-initialize
         if os.path.exists('rcc_stokvel.db'):
             os.remove('rcc_stokvel.db')
         init_db()
@@ -190,12 +189,13 @@ if not st.session_state.logged_in:
         with st.form("login_form"):
             login_name = st.text_input("Registered Full Name", value="Rendani Mufamadi")
             login_group = st.text_input("Stokvel Group Name", value="Mufamadi")
+            login_role = st.selectbox("Select Role", ["Treasurer", "Member"])
             login_btn = st.form_submit_button("LOG IN")
             
             if login_btn:
                 conn = sqlite3.connect('rcc_stokvel.db')
                 c = conn.cursor()
-                c.execute("SELECT role, status FROM users WHERE name = ? AND group_name = ?", (login_name.strip(), login_group.strip()))
+                c.execute("SELECT role, status FROM users WHERE name = ? AND group_name = ? AND role = ?", (login_name.strip(), login_group.strip(), login_role))
                 user_record = c.fetchone()
                 conn.close()
                 
@@ -211,7 +211,7 @@ if not st.session_state.logged_in:
                     else:
                         st.warning("⚠️ Your account is still **Pending** approval from your group Treasurer.")
                 else:
-                    st.error("Account not found. Please check your name and group name.")
+                    st.error("Account not found or role does not match. Please check your details.")
 
 # -------------------------------------------------------------
 # 2. MAIN APPLICATION (LOGGED IN VIEW)
