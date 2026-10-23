@@ -11,60 +11,64 @@ st.set_page_config(
     layout="centered"
 )
 
-# Initialize Database & Pre-populate Test Profiles
+# Initialize Database with Self-Healing Error Handling
 def init_db():
-    conn = sqlite3.connect('rcc_stokvel.db')
-    c = conn.cursor()
-    
-    # Users Table
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT,
-                    role TEXT,
-                    group_name TEXT,
-                    phone TEXT,
-                    gender TEXT,
-                    status TEXT DEFAULT 'Approved',
-                    balance REAL DEFAULT 0.0)''')
-    
-    # Groups Table (Stores group settings defined by Treasurer)
-    c.execute('''CREATE TABLE IF NOT EXISTS groups (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    group_name TEXT UNIQUE,
-                    monthly_contrib REAL,
-                    active_months INTEGER,
-                    treasurer_name TEXT)''')
+    try:
+        conn = sqlite3.connect('rcc_stokvel.db')
+        c = conn.cursor()
+        
+        # Users Table
+        c.execute('''CREATE TABLE IF NOT EXISTS users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT,
+                        role TEXT,
+                        group_name TEXT,
+                        phone TEXT,
+                        gender TEXT,
+                        status TEXT DEFAULT 'Approved',
+                        balance REAL DEFAULT 0.0)''')
+        
+        # Groups Table (Stores group settings defined by Treasurer)
+        c.execute('''CREATE TABLE IF NOT EXISTS groups (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        group_name TEXT UNIQUE,
+                        monthly_contrib REAL,
+                        active_months INTEGER,
+                        treasurer_name TEXT)''')
 
-    # Contributions Table
-    c.execute('''CREATE TABLE IF NOT EXISTS contributions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    member_name TEXT,
-                    group_name TEXT,
-                    amount REAL,
-                    date TEXT,
-                    type TEXT)''')
-    
-    conn.commit()
+        # Contributions Table
+        c.execute('''CREATE TABLE IF NOT EXISTS contributions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        member_name TEXT,
+                        group_name TEXT,
+                        amount REAL,
+                        date TEXT,
+                        type TEXT)''')
+        
+        conn.commit()
 
-    # Create 2 Test Profiles for Easy Testing
-    # 1. Treasurer: Rendani Mufamadi
-    c.execute("SELECT id FROM users WHERE name = ? AND group_name = ?", ("Rendani Mufamadi", "Mufamadi"))
-    if not c.fetchone():
-        c.execute("INSERT INTO users (name, role, group_name, phone, gender, status, balance) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                  ("Rendani Mufamadi", "Treasurer", "Mufamadi", "0637037295", "Male", "Approved", 0.0))
-        c.execute("INSERT OR IGNORE INTO groups (group_name, monthly_contrib, active_months, treasurer_name) VALUES (?, ?, ?, ?)",
-                  ("Mufamadi", 500.0, 12, "Rendani Mufamadi"))
+        # Create 2 Test Profiles for Easy Testing
+        c.execute("SELECT id FROM users WHERE name = ? AND group_name = ?", ("Rendani Mufamadi", "Mufamadi"))
+        if not c.fetchone():
+            c.execute("INSERT INTO users (name, role, group_name, phone, gender, status, balance) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                      ("Rendani Mufamadi", "Treasurer", "Mufamadi", "0637037295", "Male", "Approved", 0.0))
+            c.execute("INSERT OR IGNORE INTO groups (group_name, monthly_contrib, active_months, treasurer_name) VALUES (?, ?, ?, ?)",
+                      ("Mufamadi", 500.0, 12, "Rendani Mufamadi"))
 
-    # 2. Member: Test Member
-    c.execute("SELECT id FROM users WHERE name = ? AND group_name = ?", ("Test Member", "Mufamadi"))
-    if not c.fetchone():
-        c.execute("INSERT INTO users (name, role, group_name, phone, gender, status, balance) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                  ("Test Member", "Member", "Mufamadi", "0720000000", "Female", "Approved", 500.0))
-        c.execute("INSERT INTO contributions (member_name, group_name, amount, date, type) VALUES (?, ?, ?, ?, ?)",
-                  ("Test Member", "Mufamadi", 500.0, datetime.now().strftime("%Y-%m-%d %H:%M"), "Instant EFT"))
+        c.execute("SELECT id FROM users WHERE name = ? AND group_name = ?", ("Test Member", "Mufamadi"))
+        if not c.fetchone():
+            c.execute("INSERT INTO users (name, role, group_name, phone, gender, status, balance) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                      ("Test Member", "Member", "Mufamadi", "0720000000", "Female", "Approved", 500.0))
+            c.execute("INSERT INTO contributions (member_name, group_name, amount, date, type) VALUES (?, ?, ?, ?, ?)",
+                      ("Test Member", "Mufamadi", 500.0, datetime.now().strftime("%Y-%m-%d %H:%M"), "Instant EFT"))
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        # If any database error occurs, wipe the corrupted db file and re-initialize
+        if os.path.exists('rcc_stokvel.db'):
+            os.remove('rcc_stokvel.db')
+        init_db()
 
 init_db()
 
@@ -143,7 +147,6 @@ if not st.session_state.logged_in:
             
             group_name = st.text_input("Stokvel Group Name (e.g., Mufamadi)")
             
-            # Additional fields required if signing up as Treasurer establishing a group
             st.markdown("---")
             st.markdown("#### ⚙️ Stokvel Cycle Setup (Treasurer Only)")
             monthly_contrib = st.number_input("Monthly Contribution Amount (R)", min_value=0.0, value=500.0, step=50.0)
@@ -162,7 +165,6 @@ if not st.session_state.logged_in:
                               (name.strip(), role, group_name.strip(), phone.strip(), gender, initial_status))
                     
                     if role == 'Treasurer':
-                        # Save group cycle rules
                         c.execute("INSERT OR REPLACE INTO groups (group_name, monthly_contrib, active_months, treasurer_name) VALUES (?, ?, ?, ?)",
                                   (group_name.strip(), monthly_contrib, active_months, name.strip()))
                         
@@ -231,7 +233,6 @@ else:
     st.title(f"Dashboard — {st.session_state.group_name}")
     st.markdown('<div class="venda-stripes"></div>', unsafe_allow_html=True)
 
-    # Fetch group settings & calculate total projected end-of-cycle pool
     conn = sqlite3.connect('rcc_stokvel.db')
     c = conn.cursor()
     c.execute("SELECT monthly_contrib, active_months FROM groups WHERE group_name = ?", (st.session_state.group_name,))
@@ -240,12 +241,10 @@ else:
     monthly_contrib = group_settings[0] if group_settings and group_settings[0] else 500.0
     active_months = group_settings[1] if group_settings and group_settings[1] else 12
 
-    # Count approved members in group
     c.execute("SELECT COUNT(*) FROM users WHERE group_name = ? AND status = 'Approved'", (st.session_state.group_name,))
     approved_members_count = c.fetchone()[0]
     conn.close()
 
-    # Projected total pool calculation: Members × Monthly Contribution × Active Months
     projected_total_pool = approved_members_count * monthly_contrib * active_months
 
     # ==========================================
@@ -254,7 +253,6 @@ else:
     if st.session_state.role == "Treasurer":
         st.info(f"👑 **Treasurer Control Center:** Group target set to **{active_months} months** at **R{monthly_contrib:,.2f}** per month.")
         
-        # Display Projections Banner
         col_p1, col_p2, col_p3 = st.columns(3)
         col_p1.metric("Active Members", approved_members_count)
         col_p2.metric("Monthly Target Pool", f"R {approved_members_count * monthly_contrib:,.2f}")
