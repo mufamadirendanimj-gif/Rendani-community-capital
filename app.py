@@ -11,10 +11,12 @@ st.set_page_config(
     layout="centered"
 )
 
-# Initialize Database with safe column updates
+# Initialize Database & Pre-populate Test Profiles
 def init_db():
     conn = sqlite3.connect('rcc_stokvel.db')
     c = conn.cursor()
+    
+    # Users Table
     c.execute('''CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT,
@@ -25,16 +27,15 @@ def init_db():
                     status TEXT DEFAULT 'Approved',
                     balance REAL DEFAULT 0.0)''')
     
-    # Check if status or gender columns exist in older DB versions, add if missing
-    try:
-        c.execute("ALTER TABLE users ADD COLUMN gender TEXT")
-    except sqlite3.OperationalError:
-        pass
-    try:
-        c.execute("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'Approved'")
-    except sqlite3.OperationalError:
-        pass
+    # Groups Table (Stores group settings defined by Treasurer)
+    c.execute('''CREATE TABLE IF NOT EXISTS groups (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    group_name TEXT UNIQUE,
+                    monthly_contrib REAL,
+                    active_months INTEGER,
+                    treasurer_name TEXT)''')
 
+    # Contributions Table
     c.execute('''CREATE TABLE IF NOT EXISTS contributions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     member_name TEXT,
@@ -42,6 +43,26 @@ def init_db():
                     amount REAL,
                     date TEXT,
                     type TEXT)''')
+    
+    conn.commit()
+
+    # Create 2 Test Profiles for Easy Testing
+    # 1. Treasurer: Rendani Mufamadi
+    c.execute("SELECT id FROM users WHERE name = ? AND group_name = ?", ("Rendani Mufamadi", "Mufamadi"))
+    if not c.fetchone():
+        c.execute("INSERT INTO users (name, role, group_name, phone, gender, status, balance) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                  ("Rendani Mufamadi", "Treasurer", "Mufamadi", "0637037295", "Male", "Approved", 0.0))
+        c.execute("INSERT OR IGNORE INTO groups (group_name, monthly_contrib, active_months, treasurer_name) VALUES (?, ?, ?, ?)",
+                  ("Mufamadi", 500.0, 12, "Rendani Mufamadi"))
+
+    # 2. Member: Test Member
+    c.execute("SELECT id FROM users WHERE name = ? AND group_name = ?", ("Test Member", "Mufamadi"))
+    if not c.fetchone():
+        c.execute("INSERT INTO users (name, role, group_name, phone, gender, status, balance) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                  ("Test Member", "Member", "Mufamadi", "0720000000", "Female", "Approved", 500.0))
+        c.execute("INSERT INTO contributions (member_name, group_name, amount, date, type) VALUES (?, ?, ?, ?, ?)",
+                  ("Test Member", "Mufamadi", 500.0, datetime.now().strftime("%Y-%m-%d %H:%M"), "Instant EFT"))
+
     conn.commit()
     conn.close()
 
@@ -102,7 +123,6 @@ st.markdown("""
 # 1. WELCOME & SIGN UP / LOGIN PAGE
 # -------------------------------------------------------------
 if not st.session_state.logged_in:
-    # Display Logo if available
     if os.path.exists("logo.jpg"):
         col_l, col_c, col_r = st.columns([1, 2, 1])
         with col_c:
@@ -111,16 +131,23 @@ if not st.session_state.logged_in:
     st.markdown('<div class="main-title">CREATE YOUR ACCOUNT</div>', unsafe_allow_html=True)
     st.markdown('<div class="venda-stripes"></div>', unsafe_allow_html=True)
     
-    tab_signup, tab_login = st.tabs(["📝 Self Register (Needs Approval)", "🔑 Treasurer / Existing Login"])
+    tab_signup, tab_login = st.tabs(["📝 Self Register / New Group", "🔑 Existing Login (Test Profiles)"])
     
     with tab_signup:
-        st.markdown("### Member & Treasurer Registration")
+        st.markdown("### Sign Up (Members & New Treasurers)")
         with st.form("signup_form"):
             name = st.text_input("Full Name")
-            group_name = st.text_input("Stokvel / Group Name (e.g., Mafhafha Savings)")
             phone = st.text_input("Phone Number")
             role = st.selectbox("Select Role", ["Member", "Treasurer"])
             gender = st.selectbox("Select Gender", ["Male", "Female"])
+            
+            group_name = st.text_input("Stokvel Group Name (e.g., Mufamadi)")
+            
+            # Additional fields required if signing up as Treasurer establishing a group
+            st.markdown("---")
+            st.markdown("#### ⚙️ Stokvel Cycle Setup (Treasurer Only)")
+            monthly_contrib = st.number_input("Monthly Contribution Amount (R)", min_value=0.0, value=500.0, step=50.0)
+            active_months = st.number_input("Number of Active Months in Cycle", min_value=1, max_value=60, value=12)
             
             signup_btn = st.form_submit_button("SIGN UP")
             
@@ -129,11 +156,16 @@ if not st.session_state.logged_in:
                     conn = sqlite3.connect('rcc_stokvel.db')
                     c = conn.cursor()
                     
-                    # Treasurers are auto-approved, Self-registered members start as 'Pending'
                     initial_status = 'Approved' if role == 'Treasurer' else 'Pending'
                     
                     c.execute("INSERT INTO users (name, role, group_name, phone, gender, status) VALUES (?, ?, ?, ?, ?, ?)", 
                               (name.strip(), role, group_name.strip(), phone.strip(), gender, initial_status))
+                    
+                    if role == 'Treasurer':
+                        # Save group cycle rules
+                        c.execute("INSERT OR REPLACE INTO groups (group_name, monthly_contrib, active_months, treasurer_name) VALUES (?, ?, ?, ?)",
+                                  (group_name.strip(), monthly_contrib, active_months, name.strip()))
+                        
                     conn.commit()
                     conn.close()
                     
@@ -142,18 +174,20 @@ if not st.session_state.logged_in:
                         st.session_state.username = name.strip()
                         st.session_state.role = role
                         st.session_state.group_name = group_name.strip()
-                        st.success("Treasurer account created successfully! Entering dashboard...")
+                        st.success("Treasurer account and Stokvel group created successfully! Entering dashboard...")
                         st.rerun()
                     else:
-                        st.success("Registration submitted! Your account is **Pending** group Treasurer approval. You can log in once approved.")
+                        st.success("Registration submitted! Your account is **Pending** Treasurer approval.")
                 else:
                     st.error("Please enter your Full Name and Group Name.")
 
     with tab_login:
-        st.markdown("### Sign In to Dashboard")
+        st.markdown("### Quick Test Login or Standard Sign In")
+        st.info("💡 **Test Profiles Available:**\n* **Treasurer:** Rendani Mufamadi (Group: Mufamadi)\n* **Member:** Test Member (Group: Mufamadi)")
+        
         with st.form("login_form"):
-            login_name = st.text_input("Registered Full Name")
-            login_group = st.text_input("Stokvel Group Name")
+            login_name = st.text_input("Registered Full Name", value="Rendani Mufamadi")
+            login_group = st.text_input("Stokvel Group Name", value="Mufamadi")
             login_btn = st.form_submit_button("LOG IN")
             
             if login_btn:
@@ -175,7 +209,7 @@ if not st.session_state.logged_in:
                     else:
                         st.warning("⚠️ Your account is still **Pending** approval from your group Treasurer.")
                 else:
-                    st.error("Account not found. Please check your name and group name or sign up.")
+                    st.error("Account not found. Please check your name and group name.")
 
 # -------------------------------------------------------------
 # 2. MAIN APPLICATION (LOGGED IN VIEW)
@@ -197,11 +231,36 @@ else:
     st.title(f"Dashboard — {st.session_state.group_name}")
     st.markdown('<div class="venda-stripes"></div>', unsafe_allow_html=True)
 
+    # Fetch group settings & calculate total projected end-of-cycle pool
+    conn = sqlite3.connect('rcc_stokvel.db')
+    c = conn.cursor()
+    c.execute("SELECT monthly_contrib, active_months FROM groups WHERE group_name = ?", (st.session_state.group_name,))
+    group_settings = c.fetchone()
+    
+    monthly_contrib = group_settings[0] if group_settings and group_settings[0] else 500.0
+    active_months = group_settings[1] if group_settings and group_settings[1] else 12
+
+    # Count approved members in group
+    c.execute("SELECT COUNT(*) FROM users WHERE group_name = ? AND status = 'Approved'", (st.session_state.group_name,))
+    approved_members_count = c.fetchone()[0]
+    conn.close()
+
+    # Projected total pool calculation: Members × Monthly Contribution × Active Months
+    projected_total_pool = approved_members_count * monthly_contrib * active_months
+
     # ==========================================
     # TREASURER INTERFACE & PERMISSIONS
     # ==========================================
     if st.session_state.role == "Treasurer":
-        st.info("👑 **Treasurer Control Center:** Approve pending registrations, add members directly, and manage group funds.")
+        st.info(f"👑 **Treasurer Control Center:** Group target set to **{active_months} months** at **R{monthly_contrib:,.2f}** per month.")
+        
+        # Display Projections Banner
+        col_p1, col_p2, col_p3 = st.columns(3)
+        col_p1.metric("Active Members", approved_members_count)
+        col_p2.metric("Monthly Target Pool", f"R {approved_members_count * monthly_contrib:,.2f}")
+        col_p3.metric("Projected Payout at Cycle End", f"R {projected_total_pool:,.2f}", f"{active_months} Months Duration")
+        
+        st.markdown("---")
         
         tab1, tab2, tab3, tab4 = st.tabs(["⏳ Pending Approvals", "👥 Manage Members", "💰 Log Contribution", "📊 Treasury Ledger"])
         
@@ -268,7 +327,7 @@ else:
             if members_list:
                 with st.form("contrib_form"):
                     chosen_member = st.selectbox("Select Approved Member", members_list)
-                    contrib_amount = st.number_input("Contribution Amount (R)", min_value=0.0, value=500.0, step=50.0)
+                    contrib_amount = st.number_input("Contribution Amount (R)", min_value=0.0, value=monthly_contrib, step=50.0)
                     payment_type = st.selectbox("Payment Channel", ["Cash to Treasurer", "Instant EFT / Capitec Pay", "Retail Voucher (Flash/OTT)"])
                     record_btn = st.form_submit_button("Save Contribution & Send Receipt")
                     
@@ -294,7 +353,7 @@ else:
             if not df_contribs.empty:
                 st.dataframe(df_contribs, use_container_width=True)
                 total_pool = df_contribs['amount'].sum()
-                st.metric("Total Group Treasury Pool", f"R {total_pool:,.2f}")
+                st.metric("Total Collected Treasury Pool so Far", f"R {total_pool:,.2f}")
             else:
                 st.info("No financial contributions recorded yet.")
 
@@ -302,7 +361,7 @@ else:
     # MEMBER INTERFACE & PERMISSIONS
     # ==========================================
     else:
-        st.info("👤 **Member Portal:** View your personal savings and contribution statements below.")
+        st.info(f"👤 **Member Portal:** Cycle duration: **{active_months} months** | Monthly Target: **R{monthly_contrib:,.2f}**")
         
         conn = sqlite3.connect('rcc_stokvel.db')
         c = conn.cursor()
@@ -313,7 +372,7 @@ else:
         
         col1, col2 = st.columns(2)
         col1.metric("My Total Saved Contributions", f"R {my_balance:,.2f}")
-        col2.metric("Stokvel Group", st.session_state.group_name)
+        col2.metric("Projected Group Payout at Term End", f"R {projected_total_pool:,.2f}")
         
         st.markdown("---")
         st.subheader("My Contribution Statement")
